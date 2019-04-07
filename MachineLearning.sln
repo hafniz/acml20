@@ -5,14 +5,40 @@ VisualStudioVersion = 16.0.28606.126
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "MachineLearning", "MachineLearning\MachineLearning.pyproj", "{E328C8B6-2138-4205-9F8E-EBAF750B086A}"
 EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Classifier1", "Classifier1\Classifier1.pyproj", "{2C120DDC-C9FA-4C64-A78C-AB7614A1FC2C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MLdotNET", "MLdotNET\MLdotNET.csproj", "{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}"
+EndProject
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "ProbDist", "ProbDist\ProbDist.pyproj", "{C1F27709-C189-482F-9F6B-F98D5B6DB696}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{E328C8B6-2138-4205-9F8E-EBAF750B086A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E328C8B6-2138-4205-9F8E-EBAF750B086A}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{E328C8B6-2138-4205-9F8E-EBAF750B086A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E328C8B6-2138-4205-9F8E-EBAF750B086A}.Release|x64.ActiveCfg = Release|Any CPU
+		{2C120DDC-C9FA-4C64-A78C-AB7614A1FC2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C120DDC-C9FA-4C64-A78C-AB7614A1FC2C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2C120DDC-C9FA-4C64-A78C-AB7614A1FC2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C120DDC-C9FA-4C64-A78C-AB7614A1FC2C}.Release|x64.ActiveCfg = Release|Any CPU
+		{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}.Debug|x64.ActiveCfg = Debug|x64
+		{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}.Debug|x64.Build.0 = Debug|x64
+		{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}.Release|x64.ActiveCfg = Release|x64
+		{12D2CE64-71EF-49E8-9A17-8BDB1BED491F}.Release|x64.Build.0 = Release|x64
+		{C1F27709-C189-482F-9F6B-F98D5B6DB696}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1F27709-C189-482F-9F6B-F98D5B6DB696}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C1F27709-C189-482F-9F6B-F98D5B6DB696}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1F27709-C189-482F-9F6B-F98D5B6DB696}.Release|x64.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
