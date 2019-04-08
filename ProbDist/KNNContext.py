@@ -31,10 +31,9 @@ class KNNContext(object):
         """
         distStats = {} # Dictionary<TLabel, float>
         for instance in self.TrainingInstances:
-            if instance.Label in distStats:
-                distStats[instance.Label] += EuclidianDist(instance, testingInstance)
-            else:
-                distStats[instance.Label] = EuclidianDist(instance, testingInstance);
+            if instance.Label not in distStats:
+                distStats[instance.Label] = 0
+            distStats[instance.Label] += EuclidianDist(instance, testingInstance)
         return KNNContext.ToProbDist(distStats)
 
     def Classify(self, testingInstance):

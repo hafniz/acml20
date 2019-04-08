@@ -25,9 +25,12 @@ def StdDev(numbers):
 def ProbablityOfBeingIn(value, mean, stdDev):
     """
     public static float ProbablityOfBeingIn(float value, float mean, float stdDev)
-    Returns: The probability of value falling in the category in which values are distributed according to N(mean, stdDev^2). 
-    Used in Naive Bayes to get, for example, P(feature1 = v1 | label = l1)
+    Returns: The probability of value falling in the category in which values are distributed according to N(mean, stdDev^2), 
+    calculated using Gaussian probability density function.
+    Used in Naive Bayes algorithm to calculate, for example, P(feature1 = v1 | label = l1)
     """
+    if stdDev == 0:
+        return 1.0 if value == mean else 0.0
     exponent = math.exp(-(((value - mean) ** 2)/(2 * (stdDev ** 2))))
     return (1 / (((2 * math.pi) ** 0.5) * stdDev)) * exponent
 
