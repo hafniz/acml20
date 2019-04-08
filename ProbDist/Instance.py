@@ -22,20 +22,25 @@ class Instance(object):
         return str(self.Features) + ", " + str(self.Label)
 
     @staticmethod
-    def ReadFromCSV(filename):
+    def ReadFromCSV(filename, hasHeader = False, hasIndex = False):
         """
-        public static List<Instance> ReadFromCsv(string filename)
+        public static List<Instance> ReadFromCsv(string filename, bool hasHeader = false, bool hasIndex = false)
         Reads a CSV file and returns a list of Instance objects.
+        filename: Absolute or relative path of the name of the CSV file containing dataset, including filename and file extension.
+        hasHeader: True if the first row in the file is header instead of instance data; otherwise, false.
+        hasIndex: True if the first column in the file is index instead of feature value; otherwise, false.
         Assumption: Each row in the CSV file represents an entry, where its rightmost value being the label and prior labels being features. 
         """
         instances = []
         with open(filename) as csvFile:
             data = list(csv.reader(csvFile))
-            for r in range(len(data)):
+            rowRange = range(1, len(data)) if hasHeader else range(len(data))
+            for r in rowRange:
                 instance = Instance([], None)
                 featureCount = len(data[r]) - 1
-                for c in range(featureCount):
-                    instance.Features.append(data[r][c])
+                columnRange = range(1, featureCount) if hasIndex else range(featureCount)
+                for c in columnRange:
+                    instance.Features.append(data[r][c]) # TODO: Store the name of feature (in the header) into created Instance object. 
                 instance.Label = data[r][-1]
                 instances.append(instance)
         return instances

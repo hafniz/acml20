@@ -44,6 +44,7 @@
     <Folder Include="data\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="data\glass.data" />
     <Content Include="data\iris.data" />
     <Content Include="data\pima-indians-diabetes_data.csv" />
   </ItemGroup>

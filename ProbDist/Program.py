@@ -4,6 +4,6 @@ from NaiveBayesContext import NaiveBayesContext
 from DecisionTreeContext import DecisionTreeContext
 
 mlContext = DecisionTreeContext()
-mlContext.SetTrainingData(Instance.ReadFromCSV(".\\data\\iris.data"))
+mlContext.SetTrainingData(Instance.ReadFromCSV(".\\data\\glass.data", False, True))
 mlContext.Train()
-print(mlContext.GetProbDist(Instance([6.15, 3.2, 4.9, 1.5])))
+print(mlContext.GetProbDist(Instance([1.51937,13.79,2.41,1.19,72.76,0.00,9.77,0.00,0.00])))
