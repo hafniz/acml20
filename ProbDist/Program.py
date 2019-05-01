@@ -4,6 +4,8 @@ from KNNContext import KNNContext
 from NaiveBayesContext import NaiveBayesContext
 from DecisionTreeContext import DecisionTreeContext
 
+datasets.load_iris()
+
 digits = datasets.load_digits()
 mlContext = NaiveBayesContext()
 mlContext.SetTrainingData(Instance.ReadFromCSV(".\\data\\glass.data", False, True))
