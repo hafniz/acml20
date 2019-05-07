@@ -123,7 +123,7 @@ namespace MLCore
         /// Write data into a CSV file.
         /// </summary>
         /// <param name="filename">Relative or absolute path of the CSV file to write, including filename and file extension. </param>
-        /// <param name="data">Data to be written into the file. Each List<object> represents a row while each object in the List represents a field. </param>
+        /// <param name="data">Data to be written into the file. Each List&lt;object&gt; represents a row while each object in the List represents a field. </param>
         /// <param name="header">Header of the data excluding index, separated by commas. Leaving as null will result in the header row not being written. </param>
         /// <param name="writeIndex">Specifies whether a zero-based index is written at the beginning of each row. The header of this column, if specified to be written, is 'Index'. </param>
         public static void WriteToCsv(string filename, List<List<string>> data, string? header = null, bool writeIndex = false)
@@ -145,9 +145,9 @@ namespace MLCore
                 foreach (List<string> rowData in data)
                 {
                     StringBuilder sb = new StringBuilder(index++);
-                    foreach (object field in rowData)
+                    foreach (string field in rowData)
                     {
-                        sb.Append("," + field.ToString());
+                        sb.Append("," + field);
                     }
                     rows.Add(sb.ToString());
                 }

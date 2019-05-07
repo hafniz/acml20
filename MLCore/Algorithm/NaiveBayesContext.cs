@@ -85,7 +85,7 @@ namespace MLCore.Algorithm
 
             foreach (string label in DistinctLabels)
             {
-                resultProbStats.Add(label, TrainingInstances.Where(i => i.LabelValue == label).Count() / (double)TrainingInstances.Count) ;
+                resultProbStats.Add(label, TrainingInstances.Count(i => i.LabelValue == label) / (double)TrainingInstances.Count);
             }
 
             foreach (string featureName in TrainingInstances[0].Features.Select(kvp => kvp.Key))
@@ -102,7 +102,7 @@ namespace MLCore.Algorithm
                     }
                     foreach (string label in TrainingInstances.Select(i => i.LabelValue).Distinct())
                     {
-                        factorProbStats[featureName][featureValue].Add(label, TrainingInstances.Where(i => i.LabelValue == label && i.Features[featureName].Value == featureValue).Count() / (double)TrainingInstances.Where(i => i.LabelValue == label).Count());
+                        factorProbStats[featureName][featureValue].Add(label, TrainingInstances.Count(i => i.LabelValue == label && i.Features[featureName].Value == featureValue) / (double)TrainingInstances.Count(i => i.LabelValue == label));
                     }
                 }
             }
@@ -118,7 +118,7 @@ namespace MLCore.Algorithm
             double evidence = 1;
             foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features)
             {
-                evidence *= TrainingInstances.Where(i => i.Features[kvp.Key].Value == kvp.Value.Value).Count() / (double)TrainingInstances.Count;
+                evidence *= TrainingInstances.Count(i => i.Features[kvp.Key].Value == kvp.Value.Value) / (double)TrainingInstances.Count;
             }
             foreach (string label in DistinctLabels)
             {

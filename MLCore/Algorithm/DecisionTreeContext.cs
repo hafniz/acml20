@@ -11,7 +11,7 @@ namespace MLCore.Algorithm
         {
             public string SplitFeatureName { get; private set; }
             public double? SplitThreshold { get; private set; }
-            public bool IsLeafNode { get; set; } = false;
+            public bool IsLeafNode { get; set; }
             public List<Instance> InstancesIn { get; set; }
             public Dictionary<string, double> LeafProbDist { get; set; } = new Dictionary<string, double>();
             public Dictionary<string, Node> SubNodes { get; set; } = new Dictionary<string, Node>();
@@ -42,7 +42,7 @@ namespace MLCore.Algorithm
             {
                 foreach (string label in InstancesIn.Select(i => i.LabelValue).Distinct())
                 {
-                    LeafProbDist.Add(label, InstancesIn.Where(i => i.LabelValue == label).Count() / (double)InstancesIn.Count);
+                    LeafProbDist.Add(label, InstancesIn.Count(i => i.LabelValue == label) / (double)InstancesIn.Count);
                 }
             }
         }
@@ -65,7 +65,7 @@ namespace MLCore.Algorithm
         private static double Entropy(IEnumerable<Instance> instances)
         {
             double sum = 0;
-            instances.Select(i => i.LabelValue).Distinct().ToList().ForEach(l => sum -= Xlog2X(instances.Where(i => i.LabelValue == l).Count() / (double)instances.Count()));
+            instances.Select(i => i.LabelValue).Distinct().ToList().ForEach(l => sum -= Xlog2X(instances.Count(i => i.LabelValue == l) / (double)instances.Count()));
             return sum;
         }
 
@@ -78,14 +78,14 @@ namespace MLCore.Algorithm
 
             double sum = 0;
             instances.Select(i => i.Features[featureName].Value).Distinct().ToList().ForEach(v =>
-            sum += instances.Where(i => i.Features[featureName].Value == v).Count() / (double)instances.Count
+            sum += instances.Count(i => i.Features[featureName].Value == v) / (double)instances.Count
             * Entropy(instances.Where(i => i.Features[featureName].Value == v)));
 
             double infoGain = Entropy(instances) - sum;
 
             double splitRatio = 0;
             instances.Select(i => i.Features[featureName].Value).Distinct().ToList().ForEach(v =>
-            splitRatio -= Xlog2X(instances.Where(i => i.Features[featureName].Value == v).Count() / (double)instances.Count));
+            splitRatio -= Xlog2X(instances.Count(i => i.Features[featureName].Value == v) / (double)instances.Count));
 
             return infoGain / splitRatio;
         }
@@ -207,8 +207,8 @@ namespace MLCore.Algorithm
 
         public override void Train()
         {
-            string splitfeatureName = GetSplitFeature(TrainingInstances, out double? threshold);
-            RootNode = new Node(TrainingInstances, splitfeatureName, threshold);
+            string splitFeatureName = GetSplitFeature(TrainingInstances, out double? threshold);
+            RootNode = new Node(TrainingInstances, splitFeatureName, threshold);
             SplitRecursive(RootNode, 1);
         }
 

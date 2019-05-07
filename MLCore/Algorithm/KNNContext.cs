@@ -7,7 +7,7 @@ namespace MLCore.Algorithm
     public class KNNContext : AlgorithmContextBase
     {
         public KNNContext(List<Instance> trainingInstances) : base(trainingInstances) { }
-        public static double EuclidianDistance(Instance instance1, Instance instance2)
+        private static double EuclideanDistance(Instance instance1, Instance instance2)
         {
             double distSumSquared = 0;
             foreach (string featureName in instance1.Features.Select(kvp => kvp.Key))
@@ -28,7 +28,7 @@ namespace MLCore.Algorithm
                 {
                     distStats.Add(trainingInstance.LabelValue, 0);
                 }
-                distStats[trainingInstance.LabelValue] += EuclidianDistance(trainingInstance, testingInstance);
+                distStats[trainingInstance.LabelValue] += EuclideanDistance(trainingInstance, testingInstance);
 #pragma warning restore CS8604 // Possible null reference argument.
             }
 
@@ -48,7 +48,7 @@ namespace MLCore.Algorithm
         }
         public double GetAlphaValue(Instance testingInstance)
         {
-            IEnumerable<Instance> GetNeighbours(Instance testingInstance, int k)
+            IEnumerable<Instance> GetNeighbors(Instance testingInstance, int k)
             {
                 Instance[] otherInstanceArray = new Instance[TrainingInstances.Count];
                 TrainingInstances.CopyTo(otherInstanceArray);
@@ -57,7 +57,7 @@ namespace MLCore.Algorithm
                 Dictionary<Instance, double> distStats = new Dictionary<Instance, double>();
                 foreach (Instance otherInstance in otherInstances)
                 {
-                    distStats.Add(otherInstance, EuclidianDistance(testingInstance, otherInstance));
+                    distStats.Add(otherInstance, EuclideanDistance(testingInstance, otherInstance));
                 }
                 distStats = distStats.OrderBy(kvp => kvp.Value).Take(k).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
                 foreach (KeyValuePair<Instance, double> kvp in distStats)
@@ -66,9 +66,9 @@ namespace MLCore.Algorithm
                 }
             }
 
-            int homoCount = TrainingInstances.Where(i => i.LabelValue == testingInstance.LabelValue).Count();
-            List<Instance> neighbours = GetNeighbours(testingInstance, homoCount - 1).ToList();
-            return neighbours.Where(i => i.LabelValue == testingInstance.LabelValue).Count() / (double)homoCount;
+            int homoCount = TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue);
+            List<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1).ToList();
+            return neighbors.Count(i => i.LabelValue == testingInstance.LabelValue) / (double)homoCount;
         }
         public List<(Instance, double)> GetAllAlphaValues()
         {
