@@ -32,19 +32,12 @@ namespace MLCore.Algorithm
 #pragma warning restore CS8604 // Possible null reference argument.
             }
 
-            double sum = 0;
-            Dictionary<string, double> distStats2 = new Dictionary<string, double>();
+            Dictionary<string, double> distStatsInverted = new Dictionary<string, double>();
             foreach (KeyValuePair<string, double> kvp in distStats)
             {
-                distStats2.Add(kvp.Key, 1 / distStats[kvp.Key]);
-                sum += distStats[kvp.Key];
+                distStatsInverted.Add(kvp.Key, 1 / kvp.Value);
             }
-            Dictionary<string, double> distStats3 = new Dictionary<string, double>();
-            foreach (KeyValuePair<string, double> kvp in distStats2)
-            {
-                distStats3.Add(kvp.Key, distStats2[kvp.Key] / sum);
-            }
-            return distStats3.OrderByDescending(kvp => kvp.Value).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            return OrderedNormalized(distStatsInverted);
         }
         public double GetAlphaValue(Instance testingInstance)
         {

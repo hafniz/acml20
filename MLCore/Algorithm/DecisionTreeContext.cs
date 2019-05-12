@@ -219,7 +219,7 @@ namespace MLCore.Algorithm
             {
                 currentNode = currentNode.NavigateDown(testingInstance);
             }
-            return currentNode.LeafProbDist.OrderByDescending(kvp => kvp.Value).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            return OrderedNormalized(currentNode.LeafProbDist);
         }
     }
 }

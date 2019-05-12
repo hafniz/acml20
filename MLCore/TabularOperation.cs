@@ -93,5 +93,21 @@ namespace MLCore
             }
             return transposed;
         }
+
+        /// <summary>
+        /// Calculates the difference between each element in the two lists. 
+        /// </summary>
+        /// <param name="minuend">A list of numbers that serves as the minuend. </param>
+        /// <param name="subtrahend">A list of numbers that serves as the subtrahend. </param>
+        /// <returns>A list of numbers whose each element represents the numerical difference between the two corresponding numbers in the arguments. </returns>
+        public static List<string> Minus(this List<string> minuend, List<string> subtrahend)
+        {
+            IEnumerable<string> diff = new List<string>();
+            for (int i = 0; i < minuend.Count; i++)
+            {
+                diff = diff.Append((double.Parse(minuend[i]) - double.Parse(subtrahend[i])).ToString());
+            }
+            return diff.ToList();
+        }
     }
 }

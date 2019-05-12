@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using MLCore.Algorithm;
 
 namespace MLCore
@@ -9,19 +10,23 @@ namespace MLCore
     {
         static void Main(string[] args)
         {
-            WriteDerivedAlphas(args);
+            Console.WriteLine($"{DateTime.Now}  Computing in progress... ");
+            List<int> indexes = new List<int>() { 0, 100, 200, 300, 600, 700, 800, 900 };
+            Action<int, int> workload = WriteProbDist;
+            workload += WriteDerivedAlphas;
+            Parallel.ForEach(indexes, i => workload(i, i + 99));
+            Console.WriteLine($"{DateTime.Now}  Successfully finished all. ");
         }
 
-        private static void WriteProbDist(string[] args)
+        private static void WriteProbDist(int startIndex, int endIndex)
         {
-            Console.WriteLine($"{DateTime.Now}  Computing in progress... ");
             const string header = "feature0,feature1,label,alpha," +
                 "knn-cv0-fold,knn-cv0-p0,knn-cv0-p1,knn-cv1-fold,knn-cv1-p0,knn-cv1-p1,knn-cv2-fold,knn-cv2-p0,knn-cv2-p1,knn-cv3-fold,knn-cv3-p0,knn-cv3-p1,knn-cv4-fold,knn-cv4-p0,knn-cv4-p1,knn-cv5-fold,knn-cv5-p0,knn-cv5-p1,knn-cv6-fold,knn-cv6-p0,knn-cv6-p1,knn-cv7-fold,knn-cv7-p0,knn-cv7-p1,knn-cv8-fold,knn-cv8-p0,knn-cv8-p1,knn-cv9-fold,knn-cv9-p0,knn-cv9-p1," +
                 "nb-cv0-fold,nb-cv0-p0,nb-cv0-p1,nb-cv1-fold,nb-cv1-p0,nb-cv1-p1,nb-cv2-fold,nb-cv2-p0,nb-cv2-p1,nb-cv3-fold,nb-cv3-p0,nb-cv3-p1,nb-cv4-fold,nb-cv4-p0,nb-cv4-p1,nb-cv5-fold,nb-cv5-p0,nb-cv5-p1,nb-cv6-fold,nb-cv6-p0,nb-cv6-p1,nb-cv7-fold,nb-cv7-p0,nb-cv7-p1,nb-cv8-fold,nb-cv8-p0,nb-cv8-p1,nb-cv9-fold,nb-cv9-p0,nb-cv9-p1," +
                 "dt-cv0-fold,dt-cv0-p0,dt-cv0-p1,dt-cv1-fold,dt-cv1-p0,dt-cv1-p1,dt-cv2-fold,dt-cv2-p0,dt-cv2-p1,dt-cv3-fold,dt-cv3-p0,dt-cv3-p1,dt-cv4-fold,dt-cv4-p0,dt-cv4-p1,dt-cv5-fold,dt-cv5-p0,dt-cv5-p1,dt-cv6-fold,dt-cv6-p0,dt-cv6-p1,dt-cv7-fold,dt-cv7-p0,dt-cv7-p1,dt-cv8-fold,dt-cv8-p0,dt-cv8-p1,dt-cv9-fold,dt-cv9-p0,dt-cv9-p1";
 
             List<Type> algorithms = new List<Type>() { typeof(KNNContext), typeof(NaiveBayesContext), typeof(DecisionTreeContext) };
-            for (int datasetNumber = int.Parse(args[0]); datasetNumber <= int.Parse(args[1]); datasetNumber++)
+            for (int datasetNumber = startIndex; datasetNumber <= endIndex; datasetNumber++)
             {
                 List<Instance> instances = CSV.ReadFromCsv($".\\artificial\\{datasetNumber}.txt", null);
                 Dictionary<Instance, List<string>> resultsSerialized = new Dictionary<Instance, List<string>>();
@@ -55,17 +60,17 @@ namespace MLCore
                     List<string> row = kvp.Key.Serialize().Split(',').ToList();
                     dataToWrite.Add(row.Concat(kvp.Value).ToList());
                 }
-                CSV.WriteToCsv($".\\results\\{datasetNumber}_results.csv", dataToWrite, header: header);
-                Console.WriteLine($"{DateTime.Now}  Finished computing on dataset #{datasetNumber}. ");
+                CSV.WriteToCsv($".\\artificial-results\\{datasetNumber}_results.csv", dataToWrite, header: header);
+                Console.WriteLine($"{DateTime.Now}  Finished computing probabilities on dataset #{datasetNumber}. ");
             }
         }
 
-        private static void WriteDerivedAlphas(string[] args)
+        private static void WriteDerivedAlphas(int startIndex, int endIndex)
         {
             // init
-            Console.WriteLine($"{DateTime.Now}  Computing in progress... ");
-            const string header133 = "feature0,feature1,label,alpha,knn-cv0-fold,knn-cv0-p0,knn-cv0-p1,knn-cv0-alpha,knn-cv1-fold,knn-cv1-p0,knn-cv1-p1,knn-cv1-alpha,knn-cv2-fold,knn-cv2-p0,knn-cv2-p1,knn-cv2-alpha,knn-cv3-fold,knn-cv3-p0,knn-cv3-p1,knn-cv3-alpha,knn-cv4-fold,knn-cv4-p0,knn-cv4-p1,knn-cv4-alpha,knn-cv5-fold,knn-cv5-p0,knn-cv5-p1,knn-cv5-alpha,knn-cv6-fold,knn-cv6-p0,knn-cv6-p1,knn-cv6-alpha,knn-cv7-fold,knn-cv7-p0,knn-cv7-p1,knn-cv7-alpha,knn-cv8-fold,knn-cv8-p0,knn-cv8-p1,knn-cv8-alpha,knn-cv9-fold,knn-cv9-p0,knn-cv9-p1,knn-cv9-alpha,knn-avg-p0,knn-avg-p1,knn-avg-alpha,nb-cv0-fold,nb-cv0-p0,nb-cv0-p1,nb-cv0-alpha,nb-cv1-fold,nb-cv1-p0,nb-cv1-p1,nb-cv1-alpha,nb-cv2-fold,nb-cv2-p0,nb-cv2-p1,nb-cv2-alpha,nb-cv3-fold,nb-cv3-p0,nb-cv3-p1,nb-cv3-alpha,nb-cv4-fold,nb-cv4-p0,nb-cv4-p1,nb-cv4-alpha,nb-cv5-fold,nb-cv5-p0,nb-cv5-p1,nb-cv5-alpha,nb-cv6-fold,nb-cv6-p0,nb-cv6-p1,nb-cv6-alpha,nb-cv7-fold,nb-cv7-p0,nb-cv7-p1,nb-cv7-alpha,nb-cv8-fold,nb-cv8-p0,nb-cv8-p1,nb-cv8-alpha,nb-cv9-fold,nb-cv9-p0,nb-cv9-p1,nb-cv9-alpha,nb-avg-p0,nb-avg-p1,nb-avg-alpha,dt-cv0-fold,dt-cv0-p0,dt-cv0-p1,dt-cv0-alpha,dt-cv1-fold,dt-cv1-p0,dt-cv1-p1,dt-cv1-alpha,dt-cv2-fold,dt-cv2-p0,dt-cv2-p1,dt-cv2-alpha,dt-cv3-fold,dt-cv3-p0,dt-cv3-p1,dt-cv3-alpha,dt-cv4-fold,dt-cv4-p0,dt-cv4-p1,dt-cv4-alpha,dt-cv5-fold,dt-cv5-p0,dt-cv5-p1,dt-cv5-alpha,dt-cv6-fold,dt-cv6-p0,dt-cv6-p1,dt-cv6-alpha,dt-cv7-fold,dt-cv7-p0,dt-cv7-p1,dt-cv7-alpha,dt-cv8-fold,dt-cv8-p0,dt-cv8-p1,dt-cv8-alpha,dt-cv9-fold,dt-cv9-p0,dt-cv9-p1,dt-cv9-alpha,dt-avg-p0,dt-avg-p1,dt-avg-alpha";
+            const string header136 = "feature0,feature1,label,alpha,knn-cv0-fold,knn-cv0-p0,knn-cv0-p1,knn-cv0-alpha,knn-cv1-fold,knn-cv1-p0,knn-cv1-p1,knn-cv1-alpha,knn-cv2-fold,knn-cv2-p0,knn-cv2-p1,knn-cv2-alpha,knn-cv3-fold,knn-cv3-p0,knn-cv3-p1,knn-cv3-alpha,knn-cv4-fold,knn-cv4-p0,knn-cv4-p1,knn-cv4-alpha,knn-cv5-fold,knn-cv5-p0,knn-cv5-p1,knn-cv5-alpha,knn-cv6-fold,knn-cv6-p0,knn-cv6-p1,knn-cv6-alpha,knn-cv7-fold,knn-cv7-p0,knn-cv7-p1,knn-cv7-alpha,knn-cv8-fold,knn-cv8-p0,knn-cv8-p1,knn-cv8-alpha,knn-cv9-fold,knn-cv9-p0,knn-cv9-p1,knn-cv9-alpha,knn-avg-p0,knn-avg-p1,knn-avg-alpha,knn-avg-alphashift,nb-cv0-fold,nb-cv0-p0,nb-cv0-p1,nb-cv0-alpha,nb-cv1-fold,nb-cv1-p0,nb-cv1-p1,nb-cv1-alpha,nb-cv2-fold,nb-cv2-p0,nb-cv2-p1,nb-cv2-alpha,nb-cv3-fold,nb-cv3-p0,nb-cv3-p1,nb-cv3-alpha,nb-cv4-fold,nb-cv4-p0,nb-cv4-p1,nb-cv4-alpha,nb-cv5-fold,nb-cv5-p0,nb-cv5-p1,nb-cv5-alpha,nb-cv6-fold,nb-cv6-p0,nb-cv6-p1,nb-cv6-alpha,nb-cv7-fold,nb-cv7-p0,nb-cv7-p1,nb-cv7-alpha,nb-cv8-fold,nb-cv8-p0,nb-cv8-p1,nb-cv8-alpha,nb-cv9-fold,nb-cv9-p0,nb-cv9-p1,nb-cv9-alpha,nb-avg-p0,nb-avg-p1,nb-avg-alpha,nb-avg-alphashift,dt-cv0-fold,dt-cv0-p0,dt-cv0-p1,dt-cv0-alpha,dt-cv1-fold,dt-cv1-p0,dt-cv1-p1,dt-cv1-alpha,dt-cv2-fold,dt-cv2-p0,dt-cv2-p1,dt-cv2-alpha,dt-cv3-fold,dt-cv3-p0,dt-cv3-p1,dt-cv3-alpha,dt-cv4-fold,dt-cv4-p0,dt-cv4-p1,dt-cv4-alpha,dt-cv5-fold,dt-cv5-p0,dt-cv5-p1,dt-cv5-alpha,dt-cv6-fold,dt-cv6-p0,dt-cv6-p1,dt-cv6-alpha,dt-cv7-fold,dt-cv7-p0,dt-cv7-p1,dt-cv7-alpha,dt-cv8-fold,dt-cv8-p0,dt-cv8-p1,dt-cv8-alpha,dt-cv9-fold,dt-cv9-p0,dt-cv9-p1,dt-cv9-alpha,dt-avg-p0,dt-avg-p1,dt-avg-alpha,dt-avg-alphashift";
             const int labelColumnIndex = 2;
+            const int alphaColumnIndex = 3;
             Dictionary<string, List<int>> indexes = new Dictionary<string, List<int>>
             {
                 // e.g. 5: row #5 and #6 are data
@@ -75,14 +80,14 @@ namespace MLCore
             };
 
             // for each dataset
-            for (int datasetNumber = int.Parse(args[0]); datasetNumber <= int.Parse(args[1]); datasetNumber++)
+            for (int datasetNumber = startIndex; datasetNumber <= endIndex; datasetNumber++)
             {
                 List<List<string>> table = CSV.ReadFromCsv($".\\artificial-results\\{datasetNumber}_results.csv", true);
 
                 // <string tag, List<string value> columnValues>
                 Dictionary<string, List<string>> newColumns = new Dictionary<string, List<string>>();
 
-                // fore each algorithm
+                // for each algorithm
                 foreach (KeyValuePair<string, List<int>> kvp in indexes)
                 {
                     List<List<double>> tenAlphaColumns = new List<List<double>>();
@@ -132,18 +137,22 @@ namespace MLCore
                     }
                     List<List<string>> alphaAverageColumns = TabularOperation.Average(joinedAlphaTables).Transpose();
                     newColumns.Add($"{kvp.Key}-avg-alpha", alphaAverageColumns[0]);
+
+                    // calculate alpha shift
+                    List<string> alphaShiftColumn = alphaAverageColumns[0].Minus(table.SelectColumn(alphaColumnIndex));
+                    newColumns.Add($"{kvp.Key}-avg-alphashift", alphaShiftColumn);
                 }
 
                 // write newColumns into file
-                List<int> insertPositions = new List<int>() { 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 44, 45, 46,
-                                                              50, 54, 58, 62, 66, 70, 74, 78, 82, 86, 87, 88, 89,
-                                                              93, 97, 101, 105, 109, 113, 117, 121, 125, 129, 130, 131, 132};
+                List<int> insertPositions = new List<int>() { 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 44, 45, 46, 47,
+                                                              51, 55, 59, 63, 67, 71, 75, 79, 83, 87, 88, 89, 90, 91,
+                                                              95, 99, 103, 107, 111, 115, 119, 123, 127, 131, 132, 133, 134, 135};
                 for (int i = 0; i < newColumns.Count; i++)
                 {
                     table.InsertColumn(newColumns.ElementAt(i).Value, insertPositions[i]);
                 }
-                CSV.WriteToCsv($".\\artificial-results\\{datasetNumber}_results_wa.csv", table, header133);
-                Console.WriteLine($"{DateTime.Now}  Finished computing on dataset #{datasetNumber}. ");
+                CSV.WriteToCsv($".\\artificial-results-n\\{datasetNumber}_results_n.csv", table, header136);
+                Console.WriteLine($"{DateTime.Now}  Finished computing derived alphas on dataset #{datasetNumber}. ");
             }
         }
     }

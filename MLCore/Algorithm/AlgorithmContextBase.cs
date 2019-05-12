@@ -10,5 +10,15 @@ namespace MLCore.Algorithm
         public virtual void Train() { } // Default implementation for algorithms that need not training, e.g., kNN.
         public abstract Dictionary<string, double> GetProbDist(Instance testingInstance);
         public string Classify(Instance testingInstance) => GetProbDist(testingInstance).ToArray()[0].Key;
+        protected static Dictionary<string, double> OrderedNormalized(Dictionary<string, double> dict)
+        {
+            double sum = dict.Select(kvp => kvp.Value).Sum();
+            Dictionary<string, double> normalized = new Dictionary<string, double>();
+            foreach (KeyValuePair<string, double> kvp in dict)
+            {
+                normalized.Add(kvp.Key, kvp.Value / sum);
+            }
+            return normalized.OrderByDescending(kvp => kvp.Value).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        }
     }
 }

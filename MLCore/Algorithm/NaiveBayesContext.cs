@@ -115,11 +115,6 @@ namespace MLCore.Algorithm
                 kvp.Value.Value = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key]);
             }
 
-            double evidence = 1;
-            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features)
-            {
-                evidence *= TrainingInstances.Count(i => i.Features[kvp.Key].Value == kvp.Value.Value) / (double)TrainingInstances.Count;
-            }
             foreach (string label in DistinctLabels)
             {
                 double priorProb = resultProbStats[label];
@@ -128,9 +123,13 @@ namespace MLCore.Algorithm
                 {
                     likelihood *= factorProbStats[kvp.Key][kvp.Value.Value][label];
                 }
-                probStats.Add(label, likelihood * priorProb / evidence);
+                double postProbToScale = likelihood * priorProb;
+                // postProb = likelihood * priorProb / evidence = postProbToScale / evidence. The denominator is omitted since it is the same for all label values.
+                // (Incorrectly) assuming evidence = Features.ForEach(f => evidence *= P(f.Value)), i.e., each feature value being independent
+                // will result in value of evidence calculated being lower than actual, thus may making posstProb > 1, which is impossible. 
+                probStats.Add(label, postProbToScale);
             }
-            return probStats.OrderByDescending(kvp => kvp.Value).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            return OrderedNormalized(probStats);
         }
     }
 }
