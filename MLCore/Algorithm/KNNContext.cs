@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using static System.Math;
 
@@ -7,6 +8,7 @@ namespace MLCore.Algorithm
     public class KNNContext : AlgorithmContextBase
     {
         public KNNContext(List<Instance> trainingInstances) : base(trainingInstances) { }
+        [DebuggerStepThrough]
         private static double EuclideanDistance(Instance instance1, Instance instance2)
         {
             double distSumSquared = 0;
@@ -32,8 +34,14 @@ namespace MLCore.Algorithm
 #pragma warning restore CS8604 // Possible null reference argument.
             }
 
-            Dictionary<string, double> distStatsInverted = new Dictionary<string, double>();
+            Dictionary<string, double> distStatsNormalized = new Dictionary<string, double>();
             foreach (KeyValuePair<string, double> kvp in distStats)
+            {
+                distStatsNormalized.Add(kvp.Key, kvp.Value / TrainingInstances.Count(i => i.LabelValue == kvp.Key));
+            }
+
+            Dictionary<string, double> distStatsInverted = new Dictionary<string, double>();
+            foreach (KeyValuePair<string, double> kvp in distStatsNormalized)
             {
                 distStatsInverted.Add(kvp.Key, 1 / kvp.Value);
             }

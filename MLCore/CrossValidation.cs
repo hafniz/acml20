@@ -39,11 +39,11 @@ namespace MLCore
                     trainingInstances = trainingInstances.Concat(trainingFold).ToList();
                 }
                 List<Instance> trainingInstancesCloned = trainingInstances.Select(i => (Instance)i.Clone()).ToList();
-                AlgorithmContextBase acb = (AlgorithmContextBase)Activator.CreateInstance(algorithm, trainingInstancesCloned);
-                acb.Train();
+                AlgorithmContextBase context = (AlgorithmContextBase)Activator.CreateInstance(algorithm, trainingInstancesCloned);
+                context.Train();
                 foreach (Instance testingInstance in folds[testingFoldNumber])
                 {
-                    results.Add(testingInstance, (acb.GetProbDist((Instance)testingInstance.Clone()), testingFoldNumber));
+                    results.Add(testingInstance, (context.GetProbDist((Instance)testingInstance.Clone()), testingFoldNumber));
                 }
             }
             return results.OrderBy(kvp => kvp.Value.Item2).ThenBy(kvp => kvp.Key.LabelValue).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);

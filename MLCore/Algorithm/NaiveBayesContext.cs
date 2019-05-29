@@ -16,47 +16,80 @@ namespace MLCore.Algorithm
         private IEnumerable<string> DistinctLabels => TrainingInstances.Select(i => i.LabelValue).Distinct();
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
 
-        private string PKIDiscretize(double value, List<double> sortedRange)
+        private string PKIDiscretize(double value, List<double> sortedRange, Dictionary<double, int>? valuePositionOffset = null)
         {
+            if (value < sortedRange[0])
+            {
+                return $"interval0";
+            }
+            if (sortedRange[^1] < value)
+            {
+                return $"interval{(int)Interval}";
+            }
+
             int minIndex = 0;
             int maxIndex = sortedRange.Count - 1;
             double valuePosition = -1;
             while (minIndex <= maxIndex)
             {
                 int midIndex = (minIndex + maxIndex) / 2;
-                if (sortedRange[0] > value)
-                {
-                    valuePosition = -0.5;
-                    break;
-                }
-                if (sortedRange[sortedRange.Count - 1] < value)
-                {
-                    valuePosition = sortedRange.Count - 0.5;
-                    break;
-                }
-                if (sortedRange[minIndex] == value)
+                if (sortedRange[midIndex] == value)
                 {
                     valuePosition = midIndex;
+
+                    // This is to resolve the problem of having multiple duplicate values for a certain feature in the training instances that 
+                    // their valuePositions may cross the border(s) of intervals. 
+                    if (valuePositionOffset is null)
+                    {
+                        // In testing phase, assign interval based on the median valuePosition of the value in the training instances. 
+
+                        double minPosition = valuePosition;
+                        while (minPosition != 0 && sortedRange[(int)minPosition - 1] == value)
+                        {
+                            minPosition--;
+                        }
+                        double maxPosition = valuePosition;
+                        while (maxPosition != sortedRange.Count - 1 && sortedRange[(int)maxPosition + 1] == value)
+                        {
+                            maxPosition++;
+                        }
+                        valuePosition = (minPosition + maxPosition) / 2;
+                    }
+                    else
+                    {
+                        // In training phase, assign interval base on the order of occurrence in sortedRange. E.g., the first occurrence of 
+                        // a certain value will get its valuePosition of the first occurrence in sortedRange, say i. The second occurrence
+                        // of the same value will then get i + 1.
+
+                        while (valuePosition != 0 && sortedRange[(int)valuePosition - 1] == value)
+                        {
+                            valuePosition--;
+                        }
+                        if (!(valuePositionOffset.ContainsKey(value)))
+                        {
+                            valuePositionOffset.Add(value, -1);
+                        }
+                        valuePositionOffset[value]++;
+                        valuePosition += valuePositionOffset[value];
+                    }
                     break;
                 }
-                if (sortedRange[minIndex] < value && sortedRange[minIndex + 1] > value)
+                if (sortedRange[midIndex] < value && value < sortedRange[midIndex + 1])
                 {
-                    valuePosition = midIndex + 0.5;
-                    break;
+                    return $"interval{(int)((midIndex + 0.5) / Interval)}";
                 }
-                if (sortedRange[minIndex] > value && sortedRange[minIndex - 1] > value)
+                if (sortedRange[midIndex - 1] < value && value < sortedRange[midIndex + 1])
                 {
-                    valuePosition = midIndex - 0.5;
-                    break;
+                    return $"interval{(int)((midIndex - 0.5) / Interval)}";
                 }
-                if (sortedRange[minIndex] > value)
+                if (value < sortedRange[midIndex])
                 {
                     maxIndex = midIndex - 1;
                     continue;
                 }
                 minIndex = midIndex + 1;
             }
-            return $"value discretized into rank {(int)(valuePosition / Interval)}";
+            return $"interval{(int)(valuePosition / Interval)}";
         }
         private void DiscretizeTrainingInstances()
         {
@@ -70,11 +103,15 @@ namespace MLCore.Algorithm
                 valueStats[featureName].Sort();
             }
 
+            Dictionary<string, Dictionary<double, int>> valuePositionOffsets = new Dictionary<string, Dictionary<double, int>>();
+            TrainingInstances[0].Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).ToList().ForEach(kvp => valuePositionOffsets.Add(kvp.Key, new Dictionary<double, int>()));
+
             foreach (Instance instance in TrainingInstances)
             {
                 foreach (KeyValuePair<string, Feature> kvp in instance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
                 {
-                    kvp.Value.Value = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key]);
+#warning Calling PKIDiscretize in this way will override original continuous input feature values irreversibly. To be fixed later. 
+                    kvp.Value.Value = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key], valuePositionOffsets[kvp.Key]);
                     kvp.Value.ValueType = ValueType.Discrete;
                 }
             }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using MLCore.Algorithm;
 
 namespace MLCore
@@ -10,12 +10,42 @@ namespace MLCore
     {
         static void Main(string[] args)
         {
-            Console.WriteLine($"{DateTime.Now}  Computing in progress... ");
-            List<int> indexes = new List<int>() { 0, 100, 200, 300, 600, 700, 800, 900 };
-            Action<int, int> workload = WriteProbDist;
-            workload += WriteDerivedAlphas;
-            Parallel.ForEach(indexes, i => workload(i, i + 99));
-            Console.WriteLine($"{DateTime.Now}  Successfully finished all. ");
+            for (int i = 1; i <= 10; i++)
+            {
+                for (int j = 1; j <= 10; j++)
+                {
+                    DecisionTreeContext.GenerateTree(i, $".\\Output\\sample-dt-{i}-{j}.csv");
+                }
+            }
+
+            //GenerateDataset("sample.csv", "testTemplate.csv");
+
+            //Console.WriteLine($"{DateTime.Now}  Computing in progress... ");
+            //List<int> indexes = new List<int>() { 0, 100, 200, 300, 600, 700, 800, 900 };
+            //Action<int, int> workload = WriteProbDist;
+            //workload += WriteDerivedAlphas;
+            //Parallel.ForEach(indexes, i => workload(i, i + 99));
+            //Console.WriteLine($"{DateTime.Now}  Successfully finished all. ");
+        }
+
+        private static void GenerateDataset(string trainFile, string testTemplate)
+        {
+            Dictionary<string, Type> algorithms = new Dictionary<string, Type>() { { "knn", typeof(KNNContext) }, { "nb", typeof(NaiveBayesContext) }, { "dt", typeof(DecisionTreeContext) } };
+            foreach (KeyValuePair<string, Type> algorithm in algorithms)
+            {
+                List<Instance> trainingInstances = CSV.ReadFromCsv(trainFile, null);
+                AlgorithmContextBase context = (AlgorithmContextBase)Activator.CreateInstance(algorithm.Value, trainingInstances);
+                context.Train();
+                List<Instance> testingInstances = CSV.ReadFromCsv(testTemplate, null);
+                List<Instance> predictResults = new List<Instance>();
+                foreach (Instance testingInstance in testingInstances)
+                {
+                    string predictLabel = context.Classify(testingInstance);
+                    Instance predictInstance = new Instance(testingInstance.Features, predictLabel, testingInstance.LabelName);
+                    predictResults.Add(predictInstance);
+                }
+                CSV.WriteToCsv($"{Path.GetFileNameWithoutExtension(trainFile)}-{algorithm.Key}.csv", predictResults);
+            }
         }
 
         private static void WriteProbDist(int startIndex, int endIndex)
