@@ -40,7 +40,7 @@ class Instance(object):
                 featureCount = len(data[r]) - 1
                 columnRange = range(1, featureCount) if hasIndex else range(featureCount)
                 for c in columnRange:
-                    instance.Features.append(data[r][c]) # TODO: Store the name of feature (in the header) into created Instance object. 
+                    instance.Features.append(data[r][c])
                 instance.Label = data[r][-1]
                 instances.append(instance)
         return instances

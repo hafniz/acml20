@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using static System.Math;
 
 namespace MLCore.Algorithm
@@ -12,9 +13,9 @@ namespace MLCore.Algorithm
             public string SplitFeatureName { get; set; }
             public double? SplitThreshold { get; set; }
             public bool IsLeafNode { get; set; }
-            public List<Instance> InstancesIn { get; set; }
+            public List<Instance> InstancesIn { get; }
             public Dictionary<string, double> LeafProbDist { get; set; } = new Dictionary<string, double>();
-            public Dictionary<string, Node> SubNodes { get; set; } = new Dictionary<string, Node>();
+            public Dictionary<string, Node> SubNodes { get; } = new Dictionary<string, Node>();
 
             public Node(List<Instance> instancesIn, string splitFeatureName, double? splitThreshold)
             {
@@ -22,6 +23,7 @@ namespace MLCore.Algorithm
                 SplitFeatureName = splitFeatureName;
                 SplitThreshold = splitThreshold;
             }
+
             public Node NavigateDown(Instance instance)
             {
                 if (SubNodes is null)
@@ -38,17 +40,59 @@ namespace MLCore.Algorithm
                 }
                 return SubNodes["greater than threshold"];
             }
+
             public void CalcLeafProbDist()
             {
+#pragma warning disable CS8606 // Possible null reference assignment to iteration variable
+                // This is suppressed because instances in InstancesIn of a Node come from TrainingInstances, which for sure have label values. 
                 foreach (string label in InstancesIn.Select(i => i.LabelValue).Distinct())
+#pragma warning restore CS8606 // Possible null reference assignment to iteration variable
                 {
+#pragma warning disable CS8604 // Possible null reference argument.
+                    // This is suppressed because the foreach iteration variable, label, is non-null.
                     LeafProbDist.Add(label, InstancesIn.Count(i => i.LabelValue == label) / (double)InstancesIn.Count);
+#pragma warning restore CS8604 // Possible null reference argument.
+                }
+            }
+
+            public override string ToString()
+            {
+                StringBuilder sb = new StringBuilder();
+                AppendNodeContent(this, 0);
+                return sb.ToString();
+
+                void AppendNodeContent(Node currentNode, int currentDepth)
+                {
+                    if (currentNode.IsLeafNode)
+                    {
+                        foreach (KeyValuePair<string, double> kvp in currentNode.LeafProbDist)
+                        {
+                            sb.AppendLine($"{new string(' ', currentDepth * 4)}{kvp.Key}: {kvp.Value}");
+                        }
+                        return;
+                    }
+                    if (currentNode.SplitThreshold.HasValue) // Continuous
+                    {
+                        sb.AppendLine($"{new string(' ', currentDepth * 4)}{currentNode.SplitFeatureName} <= {currentNode.SplitThreshold.Value}: ");
+                        AppendNodeContent(currentNode.SubNodes["less than or equal to threshold"], currentDepth + 1);
+                        sb.AppendLine($"{new string(' ', currentDepth * 4)}{currentNode.SplitFeatureName} > {currentNode.SplitThreshold.Value}: ");
+                        AppendNodeContent(currentNode.SubNodes["greater than threshold"], currentDepth + 1);
+                    }
+                    else // Discrete
+                    {
+                        foreach (KeyValuePair<string, Node> branch in currentNode.SubNodes)
+                        {
+                            sb.AppendLine($"{new string(' ', currentDepth * 4)}{currentNode.SplitFeatureName} = {branch.Key}: ");
+                            AppendNodeContent(branch.Value, currentDepth + 1);
+                        }
+                    }
                 }
             }
         }
 
-        private int MaxDepth => (int)Pow(Max(TrainingInstances[0].Features.Count, DistinctLabels.Count()), 2);
-        private int MinNodeSize => Min(TrainingInstances[0].Features.Count, DistinctLabels.Count());
+        // MaxDepth and MinNodeSize can be changed according to demand. 
+        private int MaxDepth { get; }
+        private int MinNodeSize { get; }
 #pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
         // This is suppressed because trainingInstance definitely has a non-null LabelValue. 
         private IEnumerable<string> DistinctLabels => TrainingInstances.Select(i => i.LabelValue).Distinct();
@@ -56,8 +100,12 @@ namespace MLCore.Algorithm
         private Node RootNode { get; set; }
 
 #pragma warning disable CS8618 // Non-nullable field is uninitialized.
-        // This is suppressed because RootNode will be initialized by Train() which comes before any other dereferences.
-        public DecisionTreeContext(List<Instance> trainingInstances) : base(trainingInstances) { }
+        // This is suppressed because RootNode will be initialized by Train() which comes before any dereferences.
+        public DecisionTreeContext(List<Instance> trainingInstances, int? maxDepth = null, int? minNodeSize = null) : base(trainingInstances)
+        {
+            MaxDepth = maxDepth ?? Max(TrainingInstances[0].Features.Count, DistinctLabels.Count());
+            MinNodeSize = minNodeSize ?? Min(TrainingInstances[0].Features.Count, DistinctLabels.Count());
+        }
 #pragma warning restore CS8618 // Non-nullable field is uninitialized.
 
         private static double Xlog2X(double x) => x == 0 ? 0 : x * Log2(x);
@@ -155,9 +203,9 @@ namespace MLCore.Algorithm
             Dictionary<string, List<Instance>> splitResults = new Dictionary<string, List<Instance>>();
             if (instances[0].Features[featureName].ValueType == ValueType.Discrete)
             {
-                foreach (string value in instances.Select(i => i.Features[featureName].Value).Distinct())
+                foreach (string featureValue in instances.Select(i => i.Features[featureName].Value).Distinct())
                 {
-                    splitResults.Add(value, new List<Instance>());
+                    splitResults.Add(featureValue, new List<Instance>());
                 }
                 foreach (Instance instance in instances)
                 {
@@ -186,8 +234,12 @@ namespace MLCore.Algorithm
         private void SplitRecursive(Node node, int currentDepth)
         {
             currentDepth++;
-            if (currentDepth >= MaxDepth || node.InstancesIn.Count <= MinNodeSize || node.InstancesIn.Select(i => i.LabelValue).Distinct().Count() == 1)
+            if (currentDepth >= MaxDepth || node.InstancesIn.Count <= MinNodeSize || node.InstancesIn.Select(i => i.LabelValue).Distinct().Count() == 1 || node.SplitFeatureName == "")
             {
+                if (node.SplitFeatureName == "") // TODO: Further investigation needed.
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                }
                 node.IsLeafNode = true;
                 node.CalcLeafProbDist();
                 return;
@@ -222,48 +274,72 @@ namespace MLCore.Algorithm
             return OrderedNormalized(currentNode.LeafProbDist);
         }
 
-        public static void GenerateTree(int maxDepth, string outputFilename)
+        public override string ToString() => RootNode.ToString();
+
+        /// <summary>
+        /// For experimental use. Randomly generates rules of a 2-dimensional (values of both features are continuous), binary decision tree and a binary-labeled dataset classified by the tree. 
+        /// </summary>
+        /// <param name="maxDepth">Target depth of the tree. </param>
+        /// <param name="outputConfig">The filenames, including extensions, of the file containing instances to be tested on and location where test results are to be saved respectively. If left null, testing and saving will not be performed. </param>
+        /// <returns>The root node of the generated tree. </returns>
+        public static Node GenerateTree(int maxDepth, (string testTemplate, string outputFilename)? outputConfig = null)
         {
             (Node node, List<(string splitFeatureName, double leftBound, double rightBound)> bounds) rootNodeInfo;
             rootNodeInfo.node = new Node(new List<Instance>(), "", null);
             rootNodeInfo.bounds = new List<(string splitFeatureName, double leftBound, double rightBound)> { ("feature0", 0, 1), ("feature1", 0, 1) };
-            SplitFeatures(rootNodeInfo, maxDepth, -1);
+            int startingFeatureIndex = new Random().Next(2);
+            SplitFeatures(rootNodeInfo, maxDepth, -1, startingFeatureIndex);
 
-            List<Instance> testingInstances = CSV.ReadFromCsv("testTemplate.csv", null);
-            List<Instance> predictResults = new List<Instance>();
-            foreach (Instance testingInstance in testingInstances)
+            if (!(outputConfig is null))
             {
-                Node currentNode = rootNodeInfo.node;
-                while (!currentNode.IsLeafNode)
+                List<Instance> testingInstances = CSV.ReadFromCsv(outputConfig.Value.testTemplate, null);
+                List<Instance> predictResults = new List<Instance>();
+                foreach (Instance testingInstance in testingInstances)
                 {
-                    currentNode = currentNode.NavigateDown(testingInstance);
+                    Node currentNode = rootNodeInfo.node;
+                    while (!currentNode.IsLeafNode)
+                    {
+                        currentNode = currentNode.NavigateDown(testingInstance);
+                    }
+                    predictResults.Add(new Instance(testingInstance.Features, currentNode.LeafProbDist.Single(kvp => kvp.Value == 1).Key));
                 }
-                predictResults.Add(new Instance(testingInstance.Features, currentNode.LeafProbDist.Single().Key));
+                CSV.WriteToCsv(outputConfig.Value.outputFilename, predictResults);
             }
-            CSV.WriteToCsv(outputFilename, predictResults);
+            return rootNodeInfo.node;
 
-            static void SplitFeatures((Node node, List<(string splitFeatureName, double leftBound, double rightBound)> bounds) nodeInfo, int maxDepth, int currentDepth)
+            static void SplitFeatures((Node node, List<(string splitFeatureName, double leftBound, double rightBound)> bounds) nodeInfo, int maxDepth, int currentDepth, int splitFeatureIndex)
             {
                 Random random = new Random();
                 currentDepth++;
-                if (currentDepth >= maxDepth)
-                {
-                    nodeInfo.node.IsLeafNode = true;
-                    nodeInfo.node.LeafProbDist = new Dictionary<string, double>() { { random.Next() % 2 == 0 ? "0" : "1", 1 } };
-                    return;
-                }
 
-                int splitFeatureIndex = random.Next(2);
                 nodeInfo.node.SplitFeatureName = nodeInfo.bounds[splitFeatureIndex].splitFeatureName;
 
+                // This limits the splitThreshold within range of 40% - 60% between leftBound and rightBound. Can be changed or deleted according to demand. 
                 double leftBound = nodeInfo.bounds[splitFeatureIndex].leftBound;
                 double rightBound = nodeInfo.bounds[splitFeatureIndex].rightBound;
-                double offset = 0.4 + random.NextDouble() / 5;
+                double offset = random.NextDouble(); //0.4 + random.NextDouble() / 5;
                 double splitThreshold = leftBound + offset * (rightBound - leftBound);
                 nodeInfo.node.SplitThreshold = splitThreshold;
 
                 nodeInfo.node.SubNodes.Add("less than or equal to threshold", new Node(new List<Instance>(), "", null));
                 nodeInfo.node.SubNodes.Add("greater than threshold", new Node(new List<Instance>(), "", null));
+
+                if (currentDepth + 1 >= maxDepth) // subnodes of current node are leaf nodes
+                {
+                    nodeInfo.node.SubNodes["less than or equal to threshold"].IsLeafNode = true;
+                    nodeInfo.node.SubNodes["greater than threshold"].IsLeafNode = true;
+                    if (new Random().Next() % 2 == 1) // first subnode is positive
+                    {
+                        nodeInfo.node.SubNodes["less than or equal to threshold"].LeafProbDist = new Dictionary<string, double>() { { "1.0", 1 }, { "0.0", 0 } };
+                        nodeInfo.node.SubNodes["greater than threshold"].LeafProbDist = new Dictionary<string, double>() { { "0.0", 1 }, { "1.0", 0 } };
+                    }
+                    else
+                    {
+                        nodeInfo.node.SubNodes["less than or equal to threshold"].LeafProbDist = new Dictionary<string, double>() { { "0.0", 1 }, { "1.0", 0 } };
+                        nodeInfo.node.SubNodes["greater than threshold"].LeafProbDist = new Dictionary<string, double>() { { "1.0", 1 }, { "0.0", 0 } };
+                    }
+                    return;
+                }
 
                 List<(string splitFeatureName, double leftBound, double rightBound)> lowBounds;
                 List<(string splitFeatureName, double leftBound, double rightBound)> highBounds;
@@ -291,8 +367,8 @@ namespace MLCore.Algorithm
                     };
                 }
 
-                SplitFeatures((nodeInfo.node.SubNodes["less than or equal to threshold"], lowBounds), maxDepth, currentDepth);
-                SplitFeatures((nodeInfo.node.SubNodes["greater than threshold"], highBounds), maxDepth, currentDepth);
+                SplitFeatures((nodeInfo.node.SubNodes["less than or equal to threshold"], lowBounds), maxDepth, currentDepth, splitFeatureIndex == 0 ? 1 : 0);
+                SplitFeatures((nodeInfo.node.SubNodes["greater than threshold"], highBounds), maxDepth, currentDepth, splitFeatureIndex == 0 ? 1 : 0);
             }
         }
     }

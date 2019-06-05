@@ -1,8 +1,10 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace MLCore
 {
+    [DebuggerStepThrough]
     public static class TabularOperation
     {
         /// <summary>

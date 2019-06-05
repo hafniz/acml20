@@ -8,6 +8,7 @@ namespace MLCore.Algorithm
     public class KNNContext : AlgorithmContextBase
     {
         public KNNContext(List<Instance> trainingInstances) : base(trainingInstances) { }
+
         [DebuggerStepThrough]
         private static double EuclideanDistance(Instance instance1, Instance instance2)
         {
@@ -47,6 +48,12 @@ namespace MLCore.Algorithm
             }
             return OrderedNormalized(distStatsInverted);
         }
+
+        /// <summary>
+        /// For experimental use. Alpha measures the ratio of agreeing neighbors. In this case every instance in the TrainingInstances is considered a neighbour. 
+        /// </summary>
+        /// <param name="testingInstance">The instance to be calculated alpha value on. </param>
+        /// <returns>The value of alpha. </returns>
         public double GetAlphaValue(Instance testingInstance)
         {
             IEnumerable<Instance> GetNeighbors(Instance testingInstance, int k)
@@ -71,6 +78,11 @@ namespace MLCore.Algorithm
             List<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1).ToList();
             return neighbors.Count(i => i.LabelValue == testingInstance.LabelValue) / (double)homoCount;
         }
+
+        /// <summary>
+        /// For experimental use. Calculates alpha values for each of the TrainingInstances. 
+        /// </summary>
+        /// <returns>A list of tuples consisting of each instance in TrainingInstances and its corresponding alpha value. </returns>
         public List<(Instance, double)> GetAllAlphaValues()
         {
             IEnumerable<(Instance, double)> alphas = new List<(Instance, double)>();

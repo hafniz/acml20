@@ -5,11 +5,11 @@ namespace MLCore.Algorithm
 {
     public abstract class AlgorithmContextBase
     {
-        protected List<Instance> TrainingInstances { get; set; }
+        protected List<Instance> TrainingInstances { get; }
         protected AlgorithmContextBase(List<Instance> trainingInstances) => TrainingInstances = trainingInstances;
         public virtual void Train() { } // Default implementation for algorithms that need not training, e.g., kNN.
         public abstract Dictionary<string, double> GetProbDist(Instance testingInstance);
-        public string Classify(Instance testingInstance) => GetProbDist(testingInstance).ToArray()[0].Key;
+        public string Classify(Instance testingInstance) => GetProbDist(testingInstance).First().Key;
         protected static Dictionary<string, double> OrderedNormalized(Dictionary<string, double> dict)
         {
             double sum = dict.Select(kvp => kvp.Value).Sum();

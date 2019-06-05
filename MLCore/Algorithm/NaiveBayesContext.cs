@@ -7,15 +7,16 @@ namespace MLCore.Algorithm
     public class NaiveBayesContext : AlgorithmContextBase
     {
         public NaiveBayesContext(List<Instance> trainingInstances) : base(trainingInstances) { }
-        private Dictionary<string, List<double>> valueStats = new Dictionary<string, List<double>>();
-        private Dictionary<string, double> resultProbStats = new Dictionary<string, double>();
-        private Dictionary<string, Dictionary<string, Dictionary<string, double>>> factorProbStats = new Dictionary<string, Dictionary<string, Dictionary<string, double>>>();
+        private readonly Dictionary<string, List<double>> valueStats = new Dictionary<string, List<double>>();
+        private readonly Dictionary<string, double> resultProbStats = new Dictionary<string, double>();
+        private readonly Dictionary<string, Dictionary<string, Dictionary<string, double>>> factorProbStats = new Dictionary<string, Dictionary<string, Dictionary<string, double>>>();
         private double Interval => Sqrt(TrainingInstances.Count);
 #pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
         // This is suppressed because trainingInstance definitely has a non-null LabelValue. 
         private IEnumerable<string> DistinctLabels => TrainingInstances.Select(i => i.LabelValue).Distinct();
 #pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
 
+        // TODO: Refactor this method. 
         private string PKIDiscretize(double value, List<double> sortedRange, Dictionary<double, int>? valuePositionOffset = null)
         {
             if (value < sortedRange[0])
@@ -78,7 +79,7 @@ namespace MLCore.Algorithm
                 {
                     return $"interval{(int)((midIndex + 0.5) / Interval)}";
                 }
-                if (sortedRange[midIndex - 1] < value && value < sortedRange[midIndex + 1])
+                if (sortedRange[midIndex == 0 ? 0 : midIndex - 1] < value && value < sortedRange[midIndex])
                 {
                     return $"interval{(int)((midIndex - 0.5) / Interval)}";
                 }
@@ -91,8 +92,17 @@ namespace MLCore.Algorithm
             }
             return $"interval{(int)(valuePosition / Interval)}";
         }
+
         private void DiscretizeTrainingInstances()
         {
+            for (int i = 0; i < TrainingInstances.Count; i++)
+            {
+                foreach (KeyValuePair<string, Feature> kvp in TrainingInstances[i].Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
+                {
+                    TrainingInstances[i].Features[kvp.Key].ValueDiscretized = kvp.Value.Value;
+                }
+            }
+
             foreach (string featureName in TrainingInstances[0].Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).Select(kvp => kvp.Key))
             {
                 valueStats.Add(featureName, new List<double>());
@@ -110,12 +120,11 @@ namespace MLCore.Algorithm
             {
                 foreach (KeyValuePair<string, Feature> kvp in instance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
                 {
-#warning Calling PKIDiscretize in this way will override original continuous input feature values irreversibly. To be fixed later. 
-                    kvp.Value.Value = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key], valuePositionOffsets[kvp.Key]);
-                    kvp.Value.ValueType = ValueType.Discrete;
+                    kvp.Value.ValueDiscretized = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key], valuePositionOffsets[kvp.Key]);
                 }
             }
         }
+
         public override void Train()
         {
             DiscretizeTrainingInstances();
@@ -131,25 +140,37 @@ namespace MLCore.Algorithm
                 {
                     factorProbStats.Add(featureName, new Dictionary<string, Dictionary<string, double>>());
                 }
-                foreach (string featureValue in TrainingInstances.Select(i => i.Features[featureName].Value).Distinct())
+#pragma warning disable CS8604 // Possible null reference argument.
+#pragma warning disable CS8606 // Possible null reference assignment to iteration variable
+                // CS8604 and CS8606 are suppressed because the value of ValueDiscretized has already been assigned during DiscretizeTrainingInstances().
+                foreach (string featureValue in TrainingInstances.Select(i => i.Features[featureName].ValueDiscretized).Distinct())
                 {
                     if (!factorProbStats[featureName].ContainsKey(featureValue))
                     {
                         factorProbStats[featureName].Add(featureValue, new Dictionary<string, double>());
                     }
+                    // CS8604 and CS8606 are suppressed because TrainingInstances certainly have non-null label values. 
                     foreach (string label in TrainingInstances.Select(i => i.LabelValue).Distinct())
                     {
-                        factorProbStats[featureName][featureValue].Add(label, TrainingInstances.Count(i => i.LabelValue == label && i.Features[featureName].Value == featureValue) / (double)TrainingInstances.Count(i => i.LabelValue == label));
+                        factorProbStats[featureName][featureValue].Add(label, TrainingInstances.Count(i => i.LabelValue == label && i.Features[featureName].ValueDiscretized == featureValue) / (double)TrainingInstances.Count(i => i.LabelValue == label));
                     }
                 }
+#pragma warning restore CS8604 // Possible null reference argument.
+#pragma warning restore CS8606 // Possible null reference assignment to iteration variable
             }
         }
+
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
+            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
+            {
+                testingInstance.Features[kvp.Key].ValueDiscretized = kvp.Value.Value;
+            }
+
             Dictionary<string, double> probStats = new Dictionary<string, double>();
             foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
             {
-                kvp.Value.Value = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key]);
+                kvp.Value.ValueDiscretized = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key]);
             }
 
             foreach (string label in DistinctLabels)
@@ -158,7 +179,10 @@ namespace MLCore.Algorithm
                 double likelihood = 1;
                 foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features)
                 {
-                    likelihood *= factorProbStats[kvp.Key][kvp.Value.Value][label];
+#pragma warning disable CS8604 // Possible null reference argument.
+                    // This is suppressed because the value of ValueDiscretized for each Feature has already been assigned above. 
+                    likelihood *= factorProbStats[kvp.Key][kvp.Value.ValueDiscretized][label];
+#pragma warning restore CS8604 // Possible null reference argument.
                 }
                 double postProbToScale = likelihood * priorProb;
                 // postProb = likelihood * priorProb / evidence = postProbToScale / evidence. The denominator is omitted since it is the same for all label values.
