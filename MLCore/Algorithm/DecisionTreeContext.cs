@@ -43,15 +43,13 @@ namespace MLCore.Algorithm
 
             public void CalcLeafProbDist()
             {
-#pragma warning disable CS8606 // Possible null reference assignment to iteration variable
-                // This is suppressed because instances in InstancesIn of a Node come from TrainingInstances, which for sure have label values. 
-                foreach (string label in InstancesIn.Select(i => i.LabelValue).Distinct())
-#pragma warning restore CS8606 // Possible null reference assignment to iteration variable
+                foreach (string? label in InstancesIn.Select(i => i.LabelValue).Distinct())
                 {
-#pragma warning disable CS8604 // Possible null reference argument.
-                    // This is suppressed because the foreach iteration variable, label, is non-null.
+                    if (label is null)
+                    {
+                        throw new NullReferenceException("Unlabeled instances used in growing a tree. ");
+                    }
                     LeafProbDist.Add(label, InstancesIn.Count(i => i.LabelValue == label) / (double)InstancesIn.Count);
-#pragma warning restore CS8604 // Possible null reference argument.
                 }
             }
 
@@ -90,24 +88,8 @@ namespace MLCore.Algorithm
             }
         }
 
-        // MaxDepth and MinNodeSize can be changed according to demand. 
-        private int MaxDepth { get; }
-        private int MinNodeSize { get; }
-#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-        // This is suppressed because trainingInstance definitely has a non-null LabelValue. 
-        private IEnumerable<string> DistinctLabels => TrainingInstances.Select(i => i.LabelValue).Distinct();
-#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
-        private Node RootNode { get; set; }
-
-#pragma warning disable CS8618 // Non-nullable field is uninitialized.
-        // This is suppressed because RootNode will be initialized by Train() which comes before any dereferences.
-        public DecisionTreeContext(List<Instance> trainingInstances, int? maxDepth = null, int? minNodeSize = null) : base(trainingInstances)
-        {
-            MaxDepth = maxDepth ?? Max(TrainingInstances[0].Features.Count, DistinctLabels.Count());
-            MinNodeSize = minNodeSize ?? Min(TrainingInstances[0].Features.Count, DistinctLabels.Count());
-        }
-#pragma warning restore CS8618 // Non-nullable field is uninitialized.
-
+        public DecisionTreeContext(List<Instance> trainingInstances) : base(trainingInstances) { }
+        private Node? RootNode { get; set; }
         private static double Xlog2X(double x) => x == 0 ? 0 : x * Log2(x);
 
         private static double Entropy(IEnumerable<Instance> instances)
@@ -126,15 +108,11 @@ namespace MLCore.Algorithm
 
             double sum = 0;
             instances.Select(i => i.Features[featureName].Value).Distinct().ToList().ForEach(v =>
-            sum += instances.Count(i => i.Features[featureName].Value == v) / (double)instances.Count
-            * Entropy(instances.Where(i => i.Features[featureName].Value == v)));
-
+            sum += instances.Count(i => i.Features[featureName].Value == v) / (double)instances.Count * Entropy(instances.Where(i => i.Features[featureName].Value == v)));
             double infoGain = Entropy(instances) - sum;
-
             double splitRatio = 0;
             instances.Select(i => i.Features[featureName].Value).Distinct().ToList().ForEach(v =>
             splitRatio -= Xlog2X(instances.Count(i => i.Features[featureName].Value == v) / (double)instances.Count));
-
             return infoGain / splitRatio;
         }
 
@@ -234,12 +212,8 @@ namespace MLCore.Algorithm
         private void SplitRecursive(Node node, int currentDepth)
         {
             currentDepth++;
-            if (currentDepth >= MaxDepth || node.InstancesIn.Count <= MinNodeSize || node.InstancesIn.Select(i => i.LabelValue).Distinct().Count() == 1 || node.SplitFeatureName == "")
+            if (node.InstancesIn.Count <= 1 || node.InstancesIn.Select(i => i.LabelValue).Distinct().Count() <= 1 || string.IsNullOrEmpty(node.SplitFeatureName))
             {
-                if (node.SplitFeatureName == "") // TODO: Further investigation needed.
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                }
                 node.IsLeafNode = true;
                 node.CalcLeafProbDist();
                 return;
@@ -266,7 +240,11 @@ namespace MLCore.Algorithm
 
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
-            Node currentNode = RootNode;
+            Node? currentNode = RootNode;
+            if (currentNode is null)
+            {
+                throw new NullReferenceException("Root node is null. ");
+            }
             while (!currentNode.IsLeafNode)
             {
                 currentNode = currentNode.NavigateDown(testingInstance);
@@ -274,7 +252,7 @@ namespace MLCore.Algorithm
             return OrderedNormalized(currentNode.LeafProbDist);
         }
 
-        public override string ToString() => RootNode.ToString();
+        public override string ToString() => RootNode?.ToString() ?? "Root node is null. ";
 
         /// <summary>
         /// For experimental use. Randomly generates rules of a 2-dimensional (values of both features are continuous), binary decision tree and a binary-labeled dataset classified by the tree. 

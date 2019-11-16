@@ -14,7 +14,7 @@ namespace MLCore
         /// <param name="algorithm">Type of the algorithm to be used. </param>
         /// <param name="fold">Number of fold in the cross validation. The default value is 10. </param>
         /// <returns>A dictionary mapping each instance in the dataset to a tuple consisting of probability distribution and the number of fold the instance is in. </returns>
-        public static Dictionary<Instance, (Dictionary<string, double>, int)> CVProbDist(List<Instance> instances, Type algorithm, int? targetTreeDepth = null, int fold = 10)
+        public static Dictionary<Instance, (Dictionary<string, double>, int)> CVProbDist(List<Instance> instances, Type algorithm, int fold = 10)
         {
             Random random = new Random();
             Dictionary<int, List<Instance>> folds = new Dictionary<int, List<Instance>>();
@@ -30,6 +30,7 @@ namespace MLCore
                 }
             }
 
+            //         instance              label    prob    fold
             Dictionary<Instance, (Dictionary<string, double>, int)> results = new Dictionary<Instance, (Dictionary<string, double>, int)>();
             for (int testingFoldNumber = 0; testingFoldNumber < fold; testingFoldNumber++)
             {
@@ -40,14 +41,7 @@ namespace MLCore
                 }
                 List<Instance> trainingInstancesCloned = trainingInstances.Select(i => (Instance)i.Clone()).ToList();
                 AlgorithmContextBase context;
-                if (algorithm == typeof(DecisionTreeContext))
-                {
-                    context = targetTreeDepth.HasValue ? new DecisionTreeContext(trainingInstancesCloned, targetTreeDepth) : new DecisionTreeContext(trainingInstancesCloned);
-                }
-                else
-                {
-                    context = (AlgorithmContextBase)Activator.CreateInstance(algorithm, trainingInstancesCloned);
-                }
+                context = (AlgorithmContextBase)(Activator.CreateInstance(algorithm, trainingInstancesCloned) ?? throw new NullReferenceException("Failed to create instance of algorithm context. "));
                 context.Train();
                 foreach (Instance testingInstance in folds[testingFoldNumber])
                 {

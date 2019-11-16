@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using static System.Math;
 
@@ -9,12 +10,11 @@ namespace MLCore.Algorithm
         public NaiveBayesContext(List<Instance> trainingInstances) : base(trainingInstances) { }
         private readonly Dictionary<string, List<double>> valueStats = new Dictionary<string, List<double>>();
         private readonly Dictionary<string, double> resultProbStats = new Dictionary<string, double>();
+        // When featureName == featureValue, at what probability will label == labelValue
+        //                       featureName       featureValue           label    prob
         private readonly Dictionary<string, Dictionary<string, Dictionary<string, double>>> factorProbStats = new Dictionary<string, Dictionary<string, Dictionary<string, double>>>();
         private double Interval => Sqrt(TrainingInstances.Count);
-#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
-        // This is suppressed because trainingInstance definitely has a non-null LabelValue. 
-        private IEnumerable<string> DistinctLabels => TrainingInstances.Select(i => i.LabelValue).Distinct();
-#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+        private IEnumerable<string> DistinctLabels => TrainingInstances.Select(i => i.LabelValue ?? throw new NullReferenceException("Unlabeled instance is used as training instance. ")).Distinct();
 
         // TODO: Refactor this method. 
         private string PKIDiscretize(double value, List<double> sortedRange, Dictionary<double, int>? valuePositionOffset = null)
@@ -113,8 +113,9 @@ namespace MLCore.Algorithm
                 valueStats[featureName].Sort();
             }
 
+            //         feature            value  offset
             Dictionary<string, Dictionary<double, int>> valuePositionOffsets = new Dictionary<string, Dictionary<double, int>>();
-            TrainingInstances[0].Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).ToList().ForEach(kvp => valuePositionOffsets.Add(kvp.Key, new Dictionary<double, int>()));
+            TrainingInstances.First().Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).ToList().ForEach(kvp => valuePositionOffsets.Add(kvp.Key, new Dictionary<double, int>()));
 
             foreach (Instance instance in TrainingInstances)
             {
@@ -134,60 +135,55 @@ namespace MLCore.Algorithm
                 resultProbStats.Add(label, TrainingInstances.Count(i => i.LabelValue == label) / (double)TrainingInstances.Count);
             }
 
-            foreach (string featureName in TrainingInstances[0].Features.Select(kvp => kvp.Key))
+            foreach (string featureName in TrainingInstances.First().Features.Select(kvp => kvp.Key))
             {
                 if (!factorProbStats.ContainsKey(featureName))
                 {
                     factorProbStats.Add(featureName, new Dictionary<string, Dictionary<string, double>>());
                 }
-#pragma warning disable CS8604 // Possible null reference argument.
-#pragma warning disable CS8606 // Possible null reference assignment to iteration variable
-                // CS8604 and CS8606 are suppressed because the value of ValueDiscretized has already been assigned during DiscretizeTrainingInstances().
-                foreach (string featureValue in TrainingInstances.Select(i => i.Features[featureName].ValueDiscretized).Distinct())
+
+                foreach (string? featureValue in TrainingInstances.Select(i => i.Features[featureName].ValueDiscretized).Distinct())
                 {
+                    if (featureValue is null)
+                    {
+                        throw new NullReferenceException("Instance missing discretized feature value. ");
+                    }
                     if (!factorProbStats[featureName].ContainsKey(featureValue))
                     {
                         factorProbStats[featureName].Add(featureValue, new Dictionary<string, double>());
                     }
-                    // CS8604 and CS8606 are suppressed because TrainingInstances certainly have non-null label values. 
-                    foreach (string label in TrainingInstances.Select(i => i.LabelValue).Distinct())
+                    foreach (string? label in TrainingInstances.Select(i => i.LabelValue).Distinct())
                     {
+                        if (label is null)
+                        {
+                            throw new NullReferenceException("Unlabeled instance is used as training instance. ");
+                        }
                         factorProbStats[featureName][featureValue].Add(label, TrainingInstances.Count(i => i.LabelValue == label && i.Features[featureName].ValueDiscretized == featureValue) / (double)TrainingInstances.Count(i => i.LabelValue == label));
                     }
                 }
-#pragma warning restore CS8604 // Possible null reference argument.
-#pragma warning restore CS8606 // Possible null reference assignment to iteration variable
             }
         }
 
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
-            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
+            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features)
             {
-                testingInstance.Features[kvp.Key].ValueDiscretized = kvp.Value.Value;
+                testingInstance.Features[kvp.Key].ValueDiscretized = kvp.Value.ValueType == ValueType.Discrete ? kvp.Value.Value : PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key]);
             }
 
             Dictionary<string, double> probStats = new Dictionary<string, double>();
-            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
-            {
-                kvp.Value.ValueDiscretized = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key]);
-            }
-
             foreach (string label in DistinctLabels)
             {
                 double priorProb = resultProbStats[label];
                 double likelihood = 1;
                 foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features)
                 {
-#pragma warning disable CS8604 // Possible null reference argument.
-                    // This is suppressed because the value of ValueDiscretized for each Feature has already been assigned above. 
-                    likelihood *= factorProbStats[kvp.Key][kvp.Value.ValueDiscretized][label];
-#pragma warning restore CS8604 // Possible null reference argument.
+                    likelihood *= factorProbStats[kvp.Key][kvp.Value.ValueDiscretized ?? throw new NullReferenceException("Feature value not discretized. ")][label];
                 }
                 double postProbToScale = likelihood * priorProb;
-                // postProb = likelihood * priorProb / evidence = postProbToScale / evidence. The denominator is omitted since it is the same for all label values.
-                // (Incorrectly) assuming evidence = Features.ForEach(f => evidence *= P(f.Value)), i.e., each feature value being independent
-                // will result in value of evidence calculated being lower than actual, thus may making posstProb > 1, which is impossible. 
+                // postProb = (likelihood * priorProb / evidence) = (postProbToScale / evidence). The denominator is omitted since it is the same for all label values.
+                // (Incorrectly) assuming evidence = Features.ForEach(f => evidence *= P(f.Value)), i.e., features are independent of each other
+                // will result in value of evidence calculated being lower than actual, thus may making postProb > 1, which is impossible. 
                 probStats.Add(label, postProbToScale);
             }
             return OrderedNormalized(probStats);

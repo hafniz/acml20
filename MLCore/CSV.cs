@@ -14,15 +14,11 @@ namespace MLCore
         /// Read and parse the content of a CSV file into a list of instances. 
         /// </summary>
         /// <param name="filename">Relative or absolute path of the CSV file to be read, including filename and file extension. </param>
-        /// <param name="featureTypes">A string specifying the ValueType of each feature (NOT including the label and index, if present), each feature represented by a char: 
-        /// 'c' for ValueType.Continuous, 'd' for ValueType.Discrete. Leaving as null is equivalent to marking all feature as continuous. </param>
+        /// <param name="featureTypes">A string specifying the ValueType of each feature (NOT including the label and index, if present), each feature represented by a char: 'c' for ValueType.Continuous, 'd' for ValueType.Discrete. Leaving as null is equivalent to marking all feature as continuous. </param>
         /// <param name="headerNameList">A string specifying name of each feature and label (NOT including the index, if present), separated by commas. </param>
-        /// <param name="hasHeader">Specifies whether the first row of the file is the header rather than actual value of an instance. 
-        /// If true, the first row of the file will be ignored. </param>
-        /// <param name="hasIndex">Specifies whether the first column of the file is the index of instance, which has no correlation with the label. 
-        /// If true, the first column of the file will be ignored. </param>
+        /// <param name="hasIndex">Specifies whether the first column of the file is the index of instance, which has no correlation with the label. If true, the first column of the file will be ignored. </param>
         /// <returns>A list of instances parsed from the CSV file. </returns>
-        public static List<Instance> ReadFromCsv(string filename, string? featureTypes = null, string? headerNameList = null, bool hasHeader = false, bool hasIndex = false)
+        public static List<Instance> ReadFromCsv(string filename, string? featureTypes = null, string? headerNameList = null, bool hasIndex = false)
         {
             static bool AreDistinct(object[] values)
             {
@@ -60,6 +56,7 @@ namespace MLCore
                 throw new ArgumentException($"Incorrect number of characters in argument {nameof(featureTypes)}. ");
             }
 
+            bool hasHeader = !(headerNameList is null);
             foreach (string row in rows)
             {
                 if (hasHeader)
@@ -95,11 +92,10 @@ namespace MLCore
         /// Read and parse the content of a CSV file into a list of list of string values. 
         /// </summary>
         /// <param name="filename">Relative or absolute path of the CSV file to be read, including filename and file extension. </param>
-        /// <param name="hasHeader">Specifies whether the first row of the file is the header rather than actual value of a row of fields. 
-        /// If true, the first row of the file will be ignored. </param>
+        /// <param name="hasHeader">Specifies whether the first row of the file is the header rather than actual value of a row of fields. If true, the first row of the file will be ignored. </param>
         /// <param name="hasIndex">Specifies whether the first column of the file is the index of rows. If true, the first column of the file will be ignored. </param>
         /// <returns>A list of list of string values parsed from the CSV file. </returns>
-        public static List<List<string>> ReadFromCsv(string filename, bool hasHeader = false, bool hasIndex = false)
+        public static Table<string> ReadFromCsv(string filename, bool hasHeader = false, bool hasIndex = false)
         {
             IEnumerable<string> rows = File.ReadLines(filename);
             List<List<string>> data = new List<List<string>>();
@@ -118,20 +114,19 @@ namespace MLCore
                 }
                 data.Add(rowData);
             }
-            return data;
+            return new Table<string>(data);
         }
 
         /// <summary>
         /// Write data into a CSV file.
         /// </summary>
         /// <param name="filename">Relative or absolute path of the CSV file to write, including filename and file extension. </param>
-        /// <param name="data">Data to be written into the file. Each List&lt;object&gt; represents a row while each object in the List represents a field. </param>
+        /// <param name="table">Data to be written into the file. Each List&lt;object&gt; represents a row while each object in the List represents a field. </param>
         /// <param name="header">Header of the data excluding index, separated by commas. Leaving as null will result in the header row not being written. </param>
         /// <param name="writeIndex">Specifies whether a zero-based index is written at the beginning of each row. The header of this column, if specified to be written, is 'Index'. </param>
-        public static void WriteToCsv(string filename, List<List<string>> data, string? header = null, bool writeIndex = false)
+        public static void WriteToCsv(string filename, Table<string> table, string? header = null, bool writeIndex = false)
         {
-            int columnCount = data.First().Count();
-            if (header != null && header.Split(',').Count() != columnCount)
+            if (header != null && header.Split(',').Count() != table.ColumnCount)
             {
                 throw new ArgumentException($"Incorrect number of string segments in argument {header}");
             }
@@ -144,7 +139,7 @@ namespace MLCore
                     rows.Add("Index," + header);
                 }
                 int index = 0;
-                foreach (List<string> rowData in data)
+                foreach (List<string> rowData in table)
                 {
                     StringBuilder sb = new StringBuilder(index++);
                     foreach (string field in rowData)
@@ -160,7 +155,7 @@ namespace MLCore
                 {
                     rows.Add(header);
                 }
-                foreach (List<string> rowData in data)
+                foreach (List<string> rowData in table)
                 {
                     StringBuilder sb = new StringBuilder("");
                     foreach (string field in rowData)
