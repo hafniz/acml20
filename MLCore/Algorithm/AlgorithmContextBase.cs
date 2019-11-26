@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace MLCore.Algorithm
@@ -7,9 +8,11 @@ namespace MLCore.Algorithm
     {
         protected List<Instance> TrainingInstances { get; }
         protected AlgorithmContextBase(List<Instance> trainingInstances) => TrainingInstances = trainingInstances;
-        public virtual void Train() { } // Default implementation for algorithms that need not training, e.g., kNN.
+        public virtual void Train() { } // Default implementation for algorithms that need not training, e.g. kNN.
         public abstract Dictionary<string, double> GetProbDist(Instance testingInstance);
         public string Classify(Instance testingInstance) => GetProbDist(testingInstance).First().Key;
+
+        [DebuggerStepThrough]
         protected static Dictionary<string, double> OrderedNormalized(Dictionary<string, double> dict)
         {
             double sum = dict.Select(kvp => kvp.Value).Sum();

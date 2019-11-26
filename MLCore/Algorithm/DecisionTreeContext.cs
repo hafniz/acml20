@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using static System.Math;
@@ -11,13 +12,17 @@ namespace MLCore.Algorithm
         public class Node
         {
             public string SplitFeatureName { get; set; }
-            public double? SplitThreshold { get; set; }
+            public double SplitThreshold { get; set; }
             public bool IsLeafNode { get; set; }
             public List<Instance> InstancesIn { get; }
+
+            //            labelValue, probability
             public Dictionary<string, double> LeafProbDist { get; set; } = new Dictionary<string, double>();
+
+            //          featureValue, subNode
             public Dictionary<string, Node> SubNodes { get; } = new Dictionary<string, Node>();
 
-            public Node(List<Instance> instancesIn, string splitFeatureName, double? splitThreshold)
+            public Node(List<Instance> instancesIn, string splitFeatureName, double splitThreshold)
             {
                 InstancesIn = instancesIn;
                 SplitFeatureName = splitFeatureName;
@@ -69,14 +74,7 @@ namespace MLCore.Algorithm
                         }
                         return;
                     }
-                    if (currentNode.SplitThreshold.HasValue) // Continuous
-                    {
-                        sb.AppendLine($"{new string(' ', currentDepth * 4)}{currentNode.SplitFeatureName} <= {currentNode.SplitThreshold.Value}: ");
-                        AppendNodeContent(currentNode.SubNodes["less than or equal to threshold"], currentDepth + 1);
-                        sb.AppendLine($"{new string(' ', currentDepth * 4)}{currentNode.SplitFeatureName} > {currentNode.SplitThreshold.Value}: ");
-                        AppendNodeContent(currentNode.SubNodes["greater than threshold"], currentDepth + 1);
-                    }
-                    else // Discrete
+                    if (currentNode.SplitThreshold == double.NaN) // Discrete
                     {
                         foreach (KeyValuePair<string, Node> branch in currentNode.SubNodes)
                         {
@@ -84,14 +82,24 @@ namespace MLCore.Algorithm
                             AppendNodeContent(branch.Value, currentDepth + 1);
                         }
                     }
+                    else // Continuous
+                    {
+                        sb.AppendLine($"{new string(' ', currentDepth * 4)}{currentNode.SplitFeatureName} <= {currentNode.SplitThreshold}: ");
+                        AppendNodeContent(currentNode.SubNodes["less than or equal to threshold"], currentDepth + 1);
+                        sb.AppendLine($"{new string(' ', currentDepth * 4)}{currentNode.SplitFeatureName} > {currentNode.SplitThreshold}: ");
+                        AppendNodeContent(currentNode.SubNodes["greater than threshold"], currentDepth + 1);
+                    }
                 }
             }
         }
 
         public DecisionTreeContext(List<Instance> trainingInstances) : base(trainingInstances) { }
         private Node? RootNode { get; set; }
+
+        [DebuggerStepThrough]
         private static double Xlog2X(double x) => x == 0 ? 0 : x * Log2(x);
 
+        [DebuggerStepThrough]
         private static double Entropy(IEnumerable<Instance> instances)
         {
             double sum = 0;
@@ -101,7 +109,7 @@ namespace MLCore.Algorithm
 
         private static double GainRatioDiscrete(List<Instance> instances, string featureName)
         {
-            if (instances[0].Features[featureName].ValueType != ValueType.Discrete)
+            if (instances.First().Features[featureName].ValueType != ValueType.Discrete)
             {
                 throw new ArgumentException($"Values of {featureName} is not of discrete type. ");
             }
@@ -116,9 +124,10 @@ namespace MLCore.Algorithm
             return infoGain / splitRatio;
         }
 
+        // If not successful, return value will be 0 and out threshold will be double.NaN
         private static double GainRatioContinuous(List<Instance> instances, string featureName, out double threshold)
         {
-            if (instances[0].Features[featureName].ValueType != ValueType.Continuous)
+            if (instances.First().Features[featureName].ValueType != ValueType.Continuous)
             {
                 throw new ArgumentException($"Values of {featureName} is not of continuous type. ");
             }
@@ -145,21 +154,22 @@ namespace MLCore.Algorithm
             return maxGainRatio;
         }
 
-        private static string GetSplitFeature(List<Instance> instances, out double? threshold)
+        // If not successful, return value will be string.Empty and out threshold will be double.NaN
+        private static string GetSplitFeature(List<Instance> instances, out double threshold)
         {
-            string featureName = "";
+            string featureName = string.Empty;
             double maxGainRatio = 0;
-            threshold = null;
-            foreach (string tryFeatureName in instances[0].Features.Select(kvp => kvp.Key))
+            threshold = double.NaN;
+            foreach (string tryFeatureName in instances.First().Features.Select(kvp => kvp.Key))
             {
-                if (instances[0].Features[tryFeatureName].ValueType == ValueType.Discrete)
+                if (instances.First().Features[tryFeatureName].ValueType == ValueType.Discrete)
                 {
                     double tryGainRatio = GainRatioDiscrete(instances, tryFeatureName);
                     if (tryGainRatio > maxGainRatio)
                     {
                         maxGainRatio = tryGainRatio;
                         featureName = tryFeatureName;
-                        threshold = null;
+                        threshold = double.NaN;
                     }
                 }
                 else
@@ -176,43 +186,48 @@ namespace MLCore.Algorithm
             return featureName;
         }
 
-        private static Dictionary<string, List<Instance>> Split(List<Instance> instances, string featureName, double? threshold = null)
+        private static Dictionary<string, List<Instance>> Split(List<Instance> instances, string featureName, double threshold = double.NaN)
         {
-            Dictionary<string, List<Instance>> splitResults = new Dictionary<string, List<Instance>>();
-            if (instances[0].Features[featureName].ValueType == ValueType.Discrete)
+            //      featureValue, instances
+            Dictionary<string, List<Instance>> subGroups = new Dictionary<string, List<Instance>>();
+            if (instances.First().Features[featureName].ValueType == ValueType.Discrete)
             {
                 foreach (string featureValue in instances.Select(i => i.Features[featureName].Value).Distinct())
                 {
-                    splitResults.Add(featureValue, new List<Instance>());
+                    subGroups.Add(featureValue, new List<Instance>());
                 }
                 foreach (Instance instance in instances)
                 {
-                    splitResults[(string)instance.Features[featureName].Value].Add(instance);
+                    subGroups[(string)instance.Features[featureName].Value].Add(instance);
                 }
             }
             else
             {
-                splitResults.Add("less than or equal to threshold", new List<Instance>());
-                splitResults.Add("greater than threshold", new List<Instance>());
+                subGroups.Add("less than or equal to threshold", new List<Instance>());
+                subGroups.Add("greater than threshold", new List<Instance>());
                 foreach (Instance instance in instances)
                 {
                     if (instance.Features[featureName].Value <= threshold)
                     {
-                        splitResults["less than or equal to threshold"].Add(instance);
+                        subGroups["less than or equal to threshold"].Add(instance);
                     }
                     else
                     {
-                        splitResults["greater than threshold"].Add(instance);
+                        subGroups["greater than threshold"].Add(instance);
                     }
                 }
             }
-            return splitResults;
+            return subGroups;
         }
 
         private void SplitRecursive(Node node, int currentDepth)
         {
+            bool IsBaseCase() => node.InstancesIn.Count <= 1 // No more than 1 instance in the node
+                              || node.InstancesIn.Select(i => i.LabelValue).Distinct().Count() <= 1 // All instances in the node are class-homogeneous
+                              || string.IsNullOrEmpty(node.SplitFeatureName); // None of the features provide any gain ratio (information gain)
+
             currentDepth++;
-            if (node.InstancesIn.Count <= 1 || node.InstancesIn.Select(i => i.LabelValue).Distinct().Count() <= 1 || string.IsNullOrEmpty(node.SplitFeatureName))
+            if (IsBaseCase())
             {
                 node.IsLeafNode = true;
                 node.CalcLeafProbDist();
@@ -222,7 +237,7 @@ namespace MLCore.Algorithm
             Dictionary<string, List<Instance>> branches = Split(node.InstancesIn, node.SplitFeatureName, node.SplitThreshold);
             foreach (KeyValuePair<string, List<Instance>> kvp in branches)
             {
-                string subSplitFeatureName = GetSplitFeature(kvp.Value, out double? subSplitThreshold);
+                string subSplitFeatureName = GetSplitFeature(kvp.Value, out double subSplitThreshold);
                 node.SubNodes.Add(kvp.Key, new Node(kvp.Value, subSplitFeatureName, subSplitThreshold));
             }
             foreach (Node subNode in node.SubNodes.Select(kvp => kvp.Value))
@@ -233,7 +248,7 @@ namespace MLCore.Algorithm
 
         public override void Train()
         {
-            string splitFeatureName = GetSplitFeature(TrainingInstances, out double? threshold);
+            string splitFeatureName = GetSplitFeature(TrainingInstances, out double threshold);
             RootNode = new Node(TrainingInstances, splitFeatureName, threshold);
             SplitRecursive(RootNode, -1);
         }
@@ -252,7 +267,7 @@ namespace MLCore.Algorithm
             return OrderedNormalized(currentNode.LeafProbDist);
         }
 
-        public override string ToString() => RootNode?.ToString() ?? "Root node is null. ";
+        public override string ToString() => RootNode?.ToString() ?? "(Tree with null root node)";
 
         /// <summary>
         /// For experimental use. Randomly generates rules of a 2-dimensional (values of both features are continuous), binary decision tree and a binary-labeled dataset classified by the tree. 
@@ -260,10 +275,10 @@ namespace MLCore.Algorithm
         /// <param name="maxDepth">Target depth of the tree. </param>
         /// <param name="outputConfig">The filenames, including extensions, of the file containing instances to be tested on and location where test results are to be saved respectively. If left null, testing and saving will not be performed. </param>
         /// <returns>The root node of the generated tree. </returns>
-        public static Node GenerateTree(int maxDepth, (string testTemplate, string outputFilename)? outputConfig = null)
+        public static Node GenerateRtTree(int maxDepth, (string testTemplate, string outputFilename)? outputConfig = null)
         {
             (Node node, List<(string splitFeatureName, double leftBound, double rightBound)> bounds) rootNodeInfo;
-            rootNodeInfo.node = new Node(new List<Instance>(), "", null);
+            rootNodeInfo.node = new Node(new List<Instance>(), "", double.NaN);
             rootNodeInfo.bounds = new List<(string splitFeatureName, double leftBound, double rightBound)> { ("feature0", 0, 1), ("feature1", 0, 1) };
             int startingFeatureIndex = new Random().Next(2);
             SplitFeatures(rootNodeInfo, maxDepth, -1, startingFeatureIndex);
@@ -299,8 +314,8 @@ namespace MLCore.Algorithm
                 double splitThreshold = leftBound + offset * (rightBound - leftBound);
                 nodeInfo.node.SplitThreshold = splitThreshold;
 
-                nodeInfo.node.SubNodes.Add("less than or equal to threshold", new Node(new List<Instance>(), "", null));
-                nodeInfo.node.SubNodes.Add("greater than threshold", new Node(new List<Instance>(), "", null));
+                nodeInfo.node.SubNodes.Add("less than or equal to threshold", new Node(new List<Instance>(), "", double.NaN));
+                nodeInfo.node.SubNodes.Add("greater than threshold", new Node(new List<Instance>(), "", double.NaN));
 
                 if (currentDepth + 1 >= maxDepth) // subnodes of current node are leaf nodes
                 {

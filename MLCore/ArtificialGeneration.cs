@@ -8,7 +8,8 @@ using MLCore.Algorithm;
 
 namespace MLCore
 {
-    public static class Generation
+    [Obsolete("Archived, for reference only. ")]
+    public static class ArtificialGeneration
     {
         /// <summary>
         /// Generates a 2-dimensional (values of both features are continuous), binary-labeled dataset, in which the decision boundaries are straight lines ("separators") originate from the center of the dataset, i.e. (0.5, 0.5). 
@@ -172,7 +173,7 @@ namespace MLCore
                 for (int j = 1; j <= 20; j++)
                 {
                     string name = $"RT{(i < 10 ? "0" : "") + i.ToString()}-{(j < 10 ? "0" : "") + j.ToString()}";
-                    DecisionTreeContext.Node tree = DecisionTreeContext.GenerateTree(i / 2, ($".\\Output\\testTemplate.csv", $".\\Output\\level0\\level0-dataset\\{name}.csv"));
+                    DecisionTreeContext.Node tree = DecisionTreeContext.GenerateRtTree(i / 2, ($".\\Output\\testTemplate.csv", $".\\Output\\level0\\level0-dataset\\{name}.csv"));
                     File.WriteAllText($".\\Output\\level0\\level0-RTstructure\\{name}.txt", tree.ToString());
                     Console.WriteLine($"Finished {name}");
                 }

@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>b1be48c2-9a8e-4fdd-836e-256026a0d104</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>alpha_histogram.py</StartupFile>
+    <StartupFile>no_mid_alphas.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -29,7 +29,19 @@
     </Compile>
     <Compile Include="categorized_histogram.py" />
     <Compile Include="alpha_histogram.py" />
+    <Compile Include="compare_CBR_groups.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="dataset_size_calculation.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="meta_label_generation.py" />
+    <Compile Include="normality_skewness_and_kurtosis.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="no_mid_alphas.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="remove_last_column.py">
       <SubType>Code</SubType>
     </Compile>

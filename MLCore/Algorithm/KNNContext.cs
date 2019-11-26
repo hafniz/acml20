@@ -24,25 +24,19 @@ namespace MLCore.Algorithm
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
             Dictionary<string, double> distStats = new Dictionary<string, double>();
-            foreach (Instance trainingInstance in GetNeighbors(testingInstance, (int)Sqrt(TrainingInstances.Count)))
+            foreach (Instance neighborInstance in GetNeighbors(testingInstance, TrainingInstances.Count - 1))
+            //foreach (Instance neighborInstance in GetNeighbors(testingInstance, (int)Sqrt(TrainingInstances.Count)))
             {
-                if (trainingInstance.LabelValue is null)
+                if (neighborInstance.LabelValue is null)
                 {
                     throw new NullReferenceException("Unlabeled instance is used as training instance. ");
                 }
-                if (!distStats.ContainsKey(trainingInstance.LabelValue))
+                if (!distStats.ContainsKey(neighborInstance.LabelValue))
                 {
-                    distStats.Add(trainingInstance.LabelValue, 0);
+                    distStats.Add(neighborInstance.LabelValue, 0);
                 }
-                distStats[trainingInstance.LabelValue] += EuclideanDistance(trainingInstance, testingInstance);
+                distStats[neighborInstance.LabelValue] += EuclideanDistance(neighborInstance, testingInstance);
             }
-
-            // Cannot recall why I did so :/
-            //Dictionary<string, double> distStatsNormalized = new Dictionary<string, double>();
-            //foreach (KeyValuePair<string, double> kvp in distStats)
-            //{
-            //    distStatsNormalized.Add(kvp.Key, kvp.Value / TrainingInstances.Count(i => i.LabelValue == kvp.Key));
-            //}
 
             Dictionary<string, double> distStatsInverted = new Dictionary<string, double>();
             foreach (KeyValuePair<string, double> kvp in distStats)
@@ -64,6 +58,7 @@ namespace MLCore.Algorithm
             TrainingInstances.CopyTo(otherInstanceArray);
             List<Instance> otherInstances = otherInstanceArray.ToList();
             otherInstances.Remove(testingInstance);
+
             Dictionary<Instance, double> distStats = new Dictionary<Instance, double>();
             foreach (Instance otherInstance in otherInstances)
             {
@@ -84,7 +79,7 @@ namespace MLCore.Algorithm
         public double GetAlphaValue(Instance testingInstance)
         {
             int homoCount = TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue);
-            List<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1).ToList();
+            IEnumerable<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1);
             return neighbors.Count(i => i.LabelValue == testingInstance.LabelValue) / (double)homoCount;
         }
 

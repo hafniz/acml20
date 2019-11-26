@@ -1,18 +1,20 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace MLCore
 {
+    [DebuggerStepThrough]
     public class Table<T> : IEnumerable<List<T>>
     {
         private Table() => throw new InvalidOperationException();
         public Table(List<List<T>> data) => Data = data;
 
         protected List<List<T>> Data { get; set; }
-        public int RowCount { get => Data.Count; }
-        public int ColumnCount { get => Data.FirstOrDefault().Count; }
+        public int RowCount => Data.Count;
+        public int ColumnCount => Data.FirstOrDefault().Count;
 
         public List<T> this[int rowIndex] => Data[rowIndex];
         public Table<T> SelectRows(params int[] rowIndexes)

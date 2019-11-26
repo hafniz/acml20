@@ -12,43 +12,45 @@ namespace MLCore
         /// </summary>
         /// <param name="instances">List of instances in the dataset. </param>
         /// <param name="algorithm">Type of the algorithm to be used. </param>
-        /// <param name="fold">Number of fold in the cross validation. The default value is 10. </param>
+        /// <param name="foldCount">Number of fold in the cross validation. The default value is 10. </param>
         /// <returns>A dictionary mapping each instance in the dataset to a tuple consisting of probability distribution and the number of fold the instance is in. </returns>
-        public static Dictionary<Instance, (Dictionary<string, double>, int)> CVProbDist(List<Instance> instances, Type algorithm, int fold = 10)
+        public static Dictionary<Instance, (Dictionary<string, double>, int)> CVProbDist(List<Instance> instances, Type algorithm, int foldCount = 10)
         {
             Random random = new Random();
             Dictionary<int, List<Instance>> folds = new Dictionary<int, List<Instance>>();
-            int foldSize = instances.Count / fold;
-            for (int i = 0; i < fold; i++)
+            Instance[] instancesArray = new Instance[instances.Count];
+            instances.CopyTo(instancesArray);
+            List<Instance> instancesCopy = instancesArray.ToList();
+            int foldSize = instancesCopy.Count / foldCount;
+            int reminder = instancesCopy.Count - foldSize * foldCount;
+            for (int i = 0; i < foldCount; i++)
             {
                 folds.Add(i, new List<Instance>());
-                for (int j = 0; j < foldSize; j++)
+                for (int j = 0; j < (i < reminder ? foldSize + 1 : foldSize); j++)
                 {
-                    int instanceNumber = random.Next(instances.Count);
-                    folds[i].Add(instances[instanceNumber]);
-                    instances.RemoveAt(instanceNumber);
+                    int instanceNumber = random.Next(instancesCopy.Count);
+                    folds[i].Add(instancesCopy[instanceNumber]);
+                    instancesCopy.RemoveAt(instanceNumber);
                 }
             }
 
-            //         instance              label    prob    fold
-            Dictionary<Instance, (Dictionary<string, double>, int)> results = new Dictionary<Instance, (Dictionary<string, double>, int)>();
-            for (int testingFoldNumber = 0; testingFoldNumber < fold; testingFoldNumber++)
+            Dictionary<Instance, (Dictionary<string, double> probDist, int testingFoldNumber)> results = new Dictionary<Instance, (Dictionary<string, double>, int)>();
+            for (int testingFoldNumber = 0; testingFoldNumber < foldCount; testingFoldNumber++)
             {
-                List<Instance> trainingInstances = new List<Instance>();
+                IEnumerable<Instance> trainingInstances = new List<Instance>();
                 foreach (List<Instance> trainingFold in folds.Where(kvp => kvp.Key != testingFoldNumber).Select(kvp => kvp.Value))
                 {
-                    trainingInstances = trainingInstances.Concat(trainingFold).ToList();
+                    trainingInstances = trainingInstances.Concat(trainingFold);
                 }
-                List<Instance> trainingInstancesCloned = trainingInstances.Select(i => (Instance)i.Clone()).ToList();
-                AlgorithmContextBase context;
-                context = (AlgorithmContextBase)(Activator.CreateInstance(algorithm, trainingInstancesCloned) ?? throw new NullReferenceException("Failed to create instance of algorithm context. "));
+                IEnumerable<Instance> trainingInstancesCloned = trainingInstances.Select(i => (Instance)i.Clone());
+                AlgorithmContextBase context = (AlgorithmContextBase)(Activator.CreateInstance(algorithm, trainingInstancesCloned.ToList()) ?? throw new NullReferenceException("Failed to create instance of algorithm context. "));
                 context.Train();
                 foreach (Instance testingInstance in folds[testingFoldNumber])
                 {
                     results.Add(testingInstance, (context.GetProbDist((Instance)testingInstance.Clone()), testingFoldNumber));
                 }
             }
-            return results.OrderBy(kvp => kvp.Value.Item2).ThenBy(kvp => kvp.Key.LabelValue).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            return results.OrderBy(kvp => kvp.Value.testingFoldNumber).ThenBy(kvp => kvp.Key.LabelValue).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
     }
 }

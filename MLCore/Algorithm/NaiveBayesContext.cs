@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using static System.Math;
 
@@ -8,15 +9,24 @@ namespace MLCore.Algorithm
     public class NaiveBayesContext : AlgorithmContextBase
     {
         public NaiveBayesContext(List<Instance> trainingInstances) : base(trainingInstances) { }
+
+        // For each continuous feature, what are the values occurred
+        //                       featureName     values
         private readonly Dictionary<string, List<double>> valueStats = new Dictionary<string, List<double>>();
+
+        // What proportion of the instances have each of the label values
+        //                          label  proportion
         private readonly Dictionary<string, double> resultProbStats = new Dictionary<string, double>();
+
         // When featureName == featureValue, at what probability will label == labelValue
         //                       featureName       featureValue           label    prob
         private readonly Dictionary<string, Dictionary<string, Dictionary<string, double>>> factorProbStats = new Dictionary<string, Dictionary<string, Dictionary<string, double>>>();
+
         private double Interval => Sqrt(TrainingInstances.Count);
         private IEnumerable<string> DistinctLabels => TrainingInstances.Select(i => i.LabelValue ?? throw new NullReferenceException("Unlabeled instance is used as training instance. ")).Distinct();
 
         // TODO: Refactor this method. 
+        [DebuggerStepThrough]
         private string PKIDiscretize(double value, List<double> sortedRange, Dictionary<double, int>? valuePositionOffset = null)
         {
             if (value < sortedRange[0])
@@ -42,7 +52,7 @@ namespace MLCore.Algorithm
                     // their valuePositions may cross the border(s) of intervals. 
                     if (valuePositionOffset is null)
                     {
-                        // In testing phase, assign interval based on the median valuePosition of the value in the training instances. 
+                        // In TESTING phase, assign interval based on the median valuePosition of the value in the training instances. 
 
                         double minPosition = valuePosition;
                         while (minPosition != 0 && sortedRange[(int)minPosition - 1] == value)
@@ -58,7 +68,7 @@ namespace MLCore.Algorithm
                     }
                     else
                     {
-                        // In training phase, assign interval base on the order of occurrence in sortedRange. E.g., the first occurrence of 
+                        // In TRAINING phase, assign interval base on the order of occurrence in sortedRange. E.g. the first occurrence of 
                         // a certain value will get its valuePosition of the first occurrence in sortedRange, say i. The second occurrence
                         // of the same value will then get i + 1.
 
@@ -103,7 +113,7 @@ namespace MLCore.Algorithm
                 }
             }
 
-            foreach (string featureName in TrainingInstances[0].Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).Select(kvp => kvp.Key))
+            foreach (string featureName in TrainingInstances.First().Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).Select(kvp => kvp.Key))
             {
                 valueStats.Add(featureName, new List<double>());
                 foreach (Instance instance in TrainingInstances)
@@ -113,7 +123,7 @@ namespace MLCore.Algorithm
                 valueStats[featureName].Sort();
             }
 
-            //         feature            value  offset
+            //      featureName           value  offset
             Dictionary<string, Dictionary<double, int>> valuePositionOffsets = new Dictionary<string, Dictionary<double, int>>();
             TrainingInstances.First().Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).ToList().ForEach(kvp => valuePositionOffsets.Add(kvp.Key, new Dictionary<double, int>()));
 
