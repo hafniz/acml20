@@ -24,8 +24,8 @@ namespace MLCore.Algorithm
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
             Dictionary<string, double> distStats = new Dictionary<string, double>();
-            foreach (Instance neighborInstance in GetNeighbors(testingInstance, TrainingInstances.Count - 1))
-            //foreach (Instance neighborInstance in GetNeighbors(testingInstance, (int)Sqrt(TrainingInstances.Count)))
+            //foreach (Instance neighborInstance in GetNeighbors(testingInstance, TrainingInstances.Count - 1))
+            foreach (Instance neighborInstance in GetNeighbors(testingInstance, (int)Sqrt(TrainingInstances.Count)))
             {
                 if (neighborInstance.LabelValue is null)
                 {

@@ -14,7 +14,7 @@ namespace MLCore
         static int finishedCount = 0;
         static void Main()
         {
-            IEnumerable<string> filenames = Directory.EnumerateFiles("..\\in");
+            IEnumerable<string> filenames = Directory.EnumerateFiles(Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory()).FullName, "in"));
             Parallel.ForEach(filenames, f => TryCalcProbDist(f));
             sb.AppendLine($"Finished all {finishedCount}. ");
             Console.WriteLine($"Finished all {finishedCount}. ");
@@ -55,8 +55,8 @@ namespace MLCore
             }
 
             // Do cross validation
-            foreach (KeyValuePair<Type, string> alg in new Dictionary<Type, string>() { { typeof(KNNContext), "ann" }, { typeof(NaiveBayesContext), "nb" }, { typeof(DecisionTreeContext), "dt" } })
-            //foreach (KeyValuePair<Type, string> alg in new Dictionary<Type, string>() { { typeof(KNNContext), "knn" } })
+            //foreach (KeyValuePair<Type, string> alg in new Dictionary<Type, string>() { { typeof(KNNContext), "ann" }, { typeof(NaiveBayesContext), "nb" }, { typeof(DecisionTreeContext), "dt" } })
+            foreach (KeyValuePair<Type, string> alg in new Dictionary<Type, string>() { { typeof(KNNContext), "knn" } })
             {
                 for (int cvNumber = 0; cvNumber < 10; cvNumber++)
                 {
@@ -83,14 +83,14 @@ namespace MLCore
                 }
                 table.Add(row);
             }
-            CSV.WriteToCsv($"..\\out\\{Path.GetFileName(filename)}", new Table<string>(table), string.Join(',', headers));
+            CSV.WriteToCsv(Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory()).FullName, "out", Path.GetFileName(filename)), new Table<string>(table), string.Join(',', headers));
             sb.AppendLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {++finishedCount})");
             Console.WriteLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {finishedCount})");
         }
 
         static void WriteLog()
         {
-            using StreamWriter sw = new StreamWriter("..\\log.txt");
+            using StreamWriter sw = new StreamWriter(Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory()).FullName, "log.txt"));
             sw.Write(sb);
         }
     }

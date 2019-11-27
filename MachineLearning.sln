@@ -3,10 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28606.126
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Legacy", "Legacy\Legacy.pyproj", "{E328C8B6-2138-4205-9F8E-EBAF750B086A}"
-EndProject
-Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "ProbDist", "ProbDist\ProbDist.pyproj", "{C1F27709-C189-482F-9F6B-F98D5B6DB696}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MLCore", "MLCore\MLCore.csproj", "{BACCACFD-A24B-4542-9764-85846E5A9607}"
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "PyEnvir", "PyEnvir\PyEnvir.pyproj", "{B1BE48C2-9A8E-4FDD-836E-256026A0D104}"
@@ -19,14 +15,6 @@ Global
 		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{E328C8B6-2138-4205-9F8E-EBAF750B086A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E328C8B6-2138-4205-9F8E-EBAF750B086A}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{E328C8B6-2138-4205-9F8E-EBAF750B086A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E328C8B6-2138-4205-9F8E-EBAF750B086A}.Release|x64.ActiveCfg = Release|Any CPU
-		{C1F27709-C189-482F-9F6B-F98D5B6DB696}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C1F27709-C189-482F-9F6B-F98D5B6DB696}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{C1F27709-C189-482F-9F6B-F98D5B6DB696}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C1F27709-C189-482F-9F6B-F98D5B6DB696}.Release|x64.ActiveCfg = Release|Any CPU
 		{BACCACFD-A24B-4542-9764-85846E5A9607}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{BACCACFD-A24B-4542-9764-85846E5A9607}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BACCACFD-A24B-4542-9764-85846E5A9607}.Debug|x64.ActiveCfg = Debug|Any CPU
