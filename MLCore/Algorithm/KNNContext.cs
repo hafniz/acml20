@@ -8,7 +8,15 @@ namespace MLCore.Algorithm
 {
     public class KNNContext : AlgorithmContextBase
     {
+        public enum NeighboringOption
+        {
+            AllNeighbors,
+            AllNeighborsWithReweighting,
+            SqrtNeighbors
+        }
+
         public KNNContext(List<Instance> trainingInstances) : base(trainingInstances) { }
+        public NeighboringOption NeighboringMethod => NeighboringOption.SqrtNeighbors;
 
         [DebuggerStepThrough]
         private static double EuclideanDistance(Instance instance1, Instance instance2)
@@ -24,8 +32,7 @@ namespace MLCore.Algorithm
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
             Dictionary<string, double> distStats = new Dictionary<string, double>();
-            //foreach (Instance neighborInstance in GetNeighbors(testingInstance, TrainingInstances.Count - 1))
-            foreach (Instance neighborInstance in GetNeighbors(testingInstance, (int)Sqrt(TrainingInstances.Count)))
+            foreach (Instance neighborInstance in GetNeighbors(testingInstance, NeighboringMethod == NeighboringOption.SqrtNeighbors ? (int)Sqrt(TrainingInstances.Count) : TrainingInstances.Count - 1))
             {
                 if (neighborInstance.LabelValue is null)
                 {
@@ -41,7 +48,7 @@ namespace MLCore.Algorithm
             Dictionary<string, double> distStatsInverted = new Dictionary<string, double>();
             foreach (KeyValuePair<string, double> kvp in distStats)
             {
-                distStatsInverted.Add(kvp.Key, 1 / kvp.Value);
+                distStatsInverted.Add(kvp.Key, 1.0 / kvp.Value * (NeighboringMethod == NeighboringOption.AllNeighborsWithReweighting ? TrainingInstances.Count(i => i.LabelValue == kvp.Key) / (double)TrainingInstances.Count : 1.0));
             }
             return OrderedNormalized(distStatsInverted);
         }

@@ -4,7 +4,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>b1be48c2-9a8e-4fdd-836e-256026a0d104</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>no_mid_alphas.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>

@@ -10,88 +10,61 @@ namespace MLCore
 {
     static class Program
     {
-        static readonly StringBuilder sb = new StringBuilder();
+        static readonly (Type, string) alg = (typeof(NaiveBayesContext), "nb");
+        static readonly StringBuilder logger = new StringBuilder();
+        static readonly StringBuilder resultsBuilder = new StringBuilder($"filename,{alg.Item2}-cv0,{alg.Item2}-cv1,{alg.Item2}-cv2,{alg.Item2}-cv3,{alg.Item2}-cv4,{alg.Item2}-cv5,{alg.Item2}-cv6,{alg.Item2}-cv7,{alg.Item2}-cv8,{alg.Item2}-cv9\r\n");
         static int finishedCount = 0;
+
         static void Main()
         {
-            IEnumerable<string> filenames = Directory.EnumerateFiles(Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory()).FullName, "in"));
-            Parallel.ForEach(filenames, f => TryCalcProbDist(f));
-            sb.AppendLine($"Finished all {finishedCount}. ");
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+            Parallel.ForEach(Directory.EnumerateFiles("..\\UCI_ECOC"), new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, filename => TryCvAccuracy(filename));
+            logger.AppendLine($"Finished all {finishedCount}. ");
             Console.WriteLine($"Finished all {finishedCount}. ");
-            WriteLog();
+            Output();
         }
 
-        static void TryCalcProbDist(string filename)
+        static void CurrentDomain_ProcessExit(object? sender, EventArgs e)
+        {
+            logger.AppendLine($"Program exited after finishing {finishedCount}. ");
+            Output();
+        }
+
+        static void Output()
+        {
+            using StreamWriter resultsWriter = new StreamWriter($"..\\{alg.Item2}.csv");
+            resultsWriter.Write(resultsBuilder);
+            using StreamWriter logWriter = new StreamWriter("..\\log.txt");
+            logWriter.Write(logger);
+        }
+
+        static void TryCvAccuracy(string filename)
         {
             try
             {
-                CalcProbDist(filename);
+                //List<Instance> instances = new List<Instance>();
+                //CSV.ReadFromCsv(filename, true).ToList().ForEach(row => instances.Add(new Instance(new Dictionary<string, Feature>() { { "feature0", new Feature(ValueType.Continuous, double.Parse(row[0])) }, { "feature1", new Feature(ValueType.Continuous, double.Parse(row[1])) } }, row[2])));
+                List<Instance> instances = CSV.ReadFromCsv(filename, null);
+                double[] accuracyValues = new double[10];
+                for (int i = 0; i < 10; i++)
+                {
+                    CrossValidation.CvPrediction(instances, alg.Item1, out accuracyValues[i]);
+                }
+                filename = Path.GetFileNameWithoutExtension(filename);
+                resultsBuilder.AppendLine($"{filename},{string.Join(',', accuracyValues)}");
+                logger.AppendLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {++finishedCount})");
+                Console.WriteLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {finishedCount})");
+                Console.WriteLine($"{filename},{string.Join(',', accuracyValues)}");
             }
             catch (Exception e)
             {
                 Console.WriteLine($"{DateTime.Now}\t{e.GetType().ToString()} encountered in processing {filename}, skipping this file");
-                sb.AppendLine(new string('>', 64));
-                sb.AppendLine($"{DateTime.Now}\t{e.GetType().ToString()} encountered in processing {filename}, skipping this file");
-                sb.AppendLine($"{DateTime.Now}\t{e.ToString()}");
-                sb.AppendLine(new string('>', 64));
+                resultsBuilder.AppendLine($"{filename},{string.Join(',', Enumerable.Repeat("NaN", 10))}");
+                logger.AppendLine(new string('>', 64));
+                logger.AppendLine($"{DateTime.Now}\t{e.GetType().ToString()} encountered in processing {filename}, skipping this file");
+                logger.AppendLine(e.ToString());
+                logger.AppendLine(new string('>', 64));
             }
-        }
-
-        static void CalcProbDist(string filename)
-        {
-            // Prepare instances
-            Table<string> fields = CSV.ReadFromCsv(filename, true);
-            List<Instance> instances = new List<Instance>();
-            Dictionary<Instance, Dictionary<string, double>> output = new Dictionary<Instance, Dictionary<string, double>>();
-            foreach (List<string> row in fields)
-            {
-                Instance instance = new Instance(new Dictionary<string, Feature>() { { "feature0", new Feature(ValueType.Continuous, double.Parse(row[0])) }, { "feature1", new Feature(ValueType.Continuous, double.Parse(row[1])) } }, row[2]);
-                instances.Add(instance);
-                output.Add(instance, new Dictionary<string, double>());
-                output[instance].Add("feature0", double.Parse(row[0]));
-                output[instance].Add("feature1", double.Parse(row[1]));
-                output[instance].Add("label", double.Parse(row[2]));
-                output[instance].Add("alpha", double.Parse(row[3]));
-            }
-
-            // Do cross validation
-            //foreach (KeyValuePair<Type, string> alg in new Dictionary<Type, string>() { { typeof(KNNContext), "ann" }, { typeof(NaiveBayesContext), "nb" }, { typeof(DecisionTreeContext), "dt" } })
-            foreach (KeyValuePair<Type, string> alg in new Dictionary<Type, string>() { { typeof(KNNContext), "knn" } })
-            {
-                for (int cvNumber = 0; cvNumber < 10; cvNumber++)
-                {
-                    Dictionary<Instance, (Dictionary<string, double>, int)> cvResults = CrossValidation.CVProbDist(instances, alg.Key);
-                    foreach (KeyValuePair<Instance, (Dictionary<string, double> probDist, int foldNumber)> instanceResults in cvResults)
-                    {
-                        output[instanceResults.Key].Add($"{alg.Value}-cv{cvNumber}-fold", instanceResults.Value.foldNumber);
-                        output[instanceResults.Key].Add($"{alg.Value}-cv{cvNumber}-p0", instanceResults.Value.probDist.ContainsKey("0.0") ? instanceResults.Value.probDist["0.0"] : 0);
-                        output[instanceResults.Key].Add($"{alg.Value}-cv{cvNumber}-p1", instanceResults.Value.probDist.ContainsKey("1.0") ? instanceResults.Value.probDist["1.0"] : 0);
-                        output[instanceResults.Key].Add($"{alg.Value}-cv{cvNumber}-prediction", output[instanceResults.Key][$"{alg.Value}-cv{cvNumber}-p0"] > output[instanceResults.Key][$"{alg.Value}-cv{cvNumber}-p1"] ? 0.0 : 1.0);
-                    }
-                }
-            }
-
-            // Output result
-            IEnumerable<string> headers = output.First().Value.Select(kvp => kvp.Key);
-            List<List<string>> table = new List<List<string>>();
-            foreach (KeyValuePair<Instance, Dictionary<string, double>> kvp in output)
-            {
-                List<string> row = new List<string>();
-                foreach (string header in headers)
-                {
-                    row.Add(kvp.Value[header].ToString());
-                }
-                table.Add(row);
-            }
-            CSV.WriteToCsv(Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory()).FullName, "out", Path.GetFileName(filename)), new Table<string>(table), string.Join(',', headers));
-            sb.AppendLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {++finishedCount})");
-            Console.WriteLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {finishedCount})");
-        }
-
-        static void WriteLog()
-        {
-            using StreamWriter sw = new StreamWriter(Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory()).FullName, "log.txt"));
-            sw.Write(sb);
         }
     }
 }

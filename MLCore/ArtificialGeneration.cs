@@ -256,7 +256,7 @@ namespace MLCore
                         Instance[] instancesCopy = new Instance[instances.Count];
                         instances.CopyTo(instancesCopy);
                         int targetTreeDepth = int.Parse(Path.GetFileNameWithoutExtension(filename).Substring(2, 2));
-                        Dictionary<Instance, (Dictionary<string, double>, int)> cvResults = CrossValidation.CVProbDist(instancesCopy.ToList(), type, targetTreeDepth);
+                        Dictionary<Instance, (Dictionary<string, double>, int)> cvResults = CrossValidation.CvProbDist(instancesCopy.ToList(), type, targetTreeDepth);
 
                         foreach (KeyValuePair<Instance, (Dictionary<string, double>, int)> kvp in cvResults)
                         {
