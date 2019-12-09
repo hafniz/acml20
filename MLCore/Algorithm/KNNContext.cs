@@ -15,8 +15,8 @@ namespace MLCore.Algorithm
             SqrtNeighbors
         }
 
+        public NeighboringOption NeighboringMethod { get; set; } = NeighboringOption.AllNeighborsWithReweighting;
         public KNNContext(List<Instance> trainingInstances) : base(trainingInstances) { }
-        public NeighboringOption NeighboringMethod => NeighboringOption.SqrtNeighbors;
 
         [DebuggerStepThrough]
         private static double EuclideanDistance(Instance instance1, Instance instance2)

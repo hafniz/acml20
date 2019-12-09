@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using static System.Math;
 
@@ -8,11 +7,12 @@ namespace MLCore.Algorithm
 {
     public class NaiveBayesContext : AlgorithmContextBase
     {
-        public NaiveBayesContext(List<Instance> trainingInstances) : base(trainingInstances) { }
+        private readonly int interval;
+        private readonly int[] instancesCountInEachInterval;
+        private readonly IEnumerable<string> distinctLabels;
 
-        // For each continuous feature, what are the values occurred
-        //                       featureName     values
-        private readonly Dictionary<string, List<double>> valueStats = new Dictionary<string, List<double>>();
+        // Smallest and largest values of each interval of each feature
+        private readonly Dictionary<string, double[]> intervalBoundaries = new Dictionary<string, double[]>();
 
         // What proportion of the instances have each of the label values
         //                          label  proportion
@@ -22,89 +22,48 @@ namespace MLCore.Algorithm
         //                       featureName       featureValue           label    prob
         private readonly Dictionary<string, Dictionary<string, Dictionary<string, double>>> factorProbStats = new Dictionary<string, Dictionary<string, Dictionary<string, double>>>();
 
-        private double Interval => Sqrt(TrainingInstances.Count);
-        private IEnumerable<string> DistinctLabels => TrainingInstances.Select(i => i.LabelValue ?? throw new NullReferenceException("Unlabeled instance is used as training instance. ")).Distinct();
-
-        // TODO: Refactor this method. 
-        [DebuggerStepThrough]
-        private string PKIDiscretize(double value, List<double> sortedRange, Dictionary<double, int>? valuePositionOffset = null)
+        public NaiveBayesContext(List<Instance> trainingInstances) : base(trainingInstances)
         {
-            if (value < sortedRange[0])
+            // 1. Initialize distinct labels
+            distinctLabels = TrainingInstances.Select(i => i.LabelValue ?? throw new NullReferenceException("Unlabeled instance is used as training instance. ")).Distinct();
+
+            // 2. Determine number of intervals
+            int sqrtInstancesFloor = (int)Sqrt(trainingInstances.Count);
+            if (Sqrt(trainingInstances.Count) == sqrtInstancesFloor)
             {
-                return $"interval0";
+                interval = sqrtInstancesFloor;
             }
-            if (sortedRange[^1] < value)
+            else
             {
-                return $"interval{(int)Interval}";
+                interval = TrainingInstances.Count < sqrtInstancesFloor * (sqrtInstancesFloor + 1) ? sqrtInstancesFloor : sqrtInstancesFloor + 1;
             }
 
-            int minIndex = 0;
-            int maxIndex = sortedRange.Count - 1;
-            double valuePosition = -1;
-            while (minIndex <= maxIndex)
+            // 3. Determine number of instances in each interval
+            instancesCountInEachInterval = new int[interval];
+            if (TrainingInstances.Count == Pow(interval, 2))
             {
-                int midIndex = (minIndex + maxIndex) / 2;
-                if (sortedRange[midIndex] == value)
-                {
-                    valuePosition = midIndex;
-
-                    // This is to resolve the problem of having multiple duplicate values for a certain feature in the training instances that 
-                    // their valuePositions may cross the border(s) of intervals. 
-                    if (valuePositionOffset is null)
-                    {
-                        // In TESTING phase, assign interval based on the median valuePosition of the value in the training instances. 
-
-                        double minPosition = valuePosition;
-                        while (minPosition != 0 && sortedRange[(int)minPosition - 1] == value)
-                        {
-                            minPosition--;
-                        }
-                        double maxPosition = valuePosition;
-                        while (maxPosition != sortedRange.Count - 1 && sortedRange[(int)maxPosition + 1] == value)
-                        {
-                            maxPosition++;
-                        }
-                        valuePosition = (minPosition + maxPosition) / 2;
-                    }
-                    else
-                    {
-                        // In TRAINING phase, assign interval base on the order of occurrence in sortedRange. E.g. the first occurrence of 
-                        // a certain value will get its valuePosition of the first occurrence in sortedRange, say i. The second occurrence
-                        // of the same value will then get i + 1.
-
-                        while (valuePosition != 0 && sortedRange[(int)valuePosition - 1] == value)
-                        {
-                            valuePosition--;
-                        }
-                        if (!(valuePositionOffset.ContainsKey(value)))
-                        {
-                            valuePositionOffset.Add(value, -1);
-                        }
-                        valuePositionOffset[value]++;
-                        valuePosition += valuePositionOffset[value];
-                    }
-                    break;
-                }
-                if (sortedRange[midIndex] < value && value < sortedRange[midIndex + 1])
-                {
-                    return $"interval{(int)((midIndex + 0.5) / Interval)}";
-                }
-                if (sortedRange[midIndex == 0 ? 0 : midIndex - 1] < value && value < sortedRange[midIndex])
-                {
-                    return $"interval{(int)((midIndex - 0.5) / Interval)}";
-                }
-                if (value < sortedRange[midIndex])
-                {
-                    maxIndex = midIndex - 1;
-                    continue;
-                }
-                minIndex = midIndex + 1;
+                // e.g. Count = 900, interval = 30 (exact), instancesCountInEachInterval = [30, 30, 30, ..., 30, 30, 30]
+                Array.Fill(instancesCountInEachInterval, interval);
             }
-            return $"interval{(int)(valuePosition / Interval)}";
+            else if (TrainingInstances.Count < Pow(interval, 2))
+            {
+                // e.g. Count = 890, interval = 30 (underfill), instancesCountInEachInterval = [29, ..., 29, 30, 30, ..., 30, 30]
+                int underfilledIntervalCount = (int)Pow(interval, 2) - TrainingInstances.Count;
+                Array.Fill(instancesCountInEachInterval, interval - 1, 0, underfilledIntervalCount);
+                Array.Fill(instancesCountInEachInterval, interval, underfilledIntervalCount, interval - underfilledIntervalCount);
+            }
+            else
+            {
+                // e.g. Count = 910, interval = 30 (overfill), instancesCountInEachInterval = [30, 30, ..., 30, 30, 31, ..., 31]
+                int overfilledIntervalCount = trainingInstances.Count - (int)Pow(interval, 2);
+                Array.Fill(instancesCountInEachInterval, interval, 0, interval - overfilledIntervalCount);
+                Array.Fill(instancesCountInEachInterval, interval + 1, interval - overfilledIntervalCount, overfilledIntervalCount);
+            }
         }
 
-        private void DiscretizeTrainingInstances()
+        public override void Train()
         {
+            // 1. Discretize training instances and fill in intervalBoundaries
             for (int i = 0; i < TrainingInstances.Count; i++)
             {
                 foreach (KeyValuePair<string, Feature> kvp in TrainingInstances[i].Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
@@ -115,36 +74,32 @@ namespace MLCore.Algorithm
 
             foreach (string featureName in TrainingInstances.First().Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).Select(kvp => kvp.Key))
             {
-                valueStats.Add(featureName, new List<double>());
+                List<(Instance instance, double featureValue)> featureValues = new List<(Instance, double)>();
                 foreach (Instance instance in TrainingInstances)
                 {
-                    valueStats[featureName].Add(instance.Features[featureName].Value);
+                    featureValues.Add((instance, instance.Features[featureName].Value));
                 }
-                valueStats[featureName].Sort();
-            }
-
-            //      featureName           value  offset
-            Dictionary<string, Dictionary<double, int>> valuePositionOffsets = new Dictionary<string, Dictionary<double, int>>();
-            TrainingInstances.First().Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).ToList().ForEach(kvp => valuePositionOffsets.Add(kvp.Key, new Dictionary<double, int>()));
-
-            foreach (Instance instance in TrainingInstances)
-            {
-                foreach (KeyValuePair<string, Feature> kvp in instance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
+                featureValues.Sort((tuple1, tuple2) => tuple1.featureValue.CompareTo(tuple2.featureValue));
+                int finishDiscretizedCount = 0;
+                intervalBoundaries[featureName] = new double[interval];
+                for (int i = 0; i < interval; i++)
                 {
-                    kvp.Value.ValueDiscretized = PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key], valuePositionOffsets[kvp.Key]);
+                    intervalBoundaries[featureName][i] = featureValues[finishDiscretizedCount].instance.Features[featureName].Value;
+                    for (int j = 0; j < instancesCountInEachInterval[i]; j++)
+                    {
+                        featureValues[finishDiscretizedCount].instance.Features[featureName].ValueDiscretized = $"interval{i}";
+                        finishDiscretizedCount++;
+                    }
                 }
             }
-        }
 
-        public override void Train()
-        {
-            DiscretizeTrainingInstances();
-
-            foreach (string label in DistinctLabels)
+            // 2. Fill in resultProbStats
+            foreach (string label in distinctLabels)
             {
                 resultProbStats.Add(label, TrainingInstances.Count(i => i.LabelValue == label) / (double)TrainingInstances.Count);
             }
 
+            // 3. Fill in factorProbStats
             foreach (string featureName in TrainingInstances.First().Features.Select(kvp => kvp.Key))
             {
                 if (!factorProbStats.ContainsKey(featureName))
@@ -154,21 +109,13 @@ namespace MLCore.Algorithm
 
                 foreach (string? featureValue in TrainingInstances.Select(i => i.Features[featureName].ValueDiscretized).Distinct())
                 {
-                    if (featureValue is null)
-                    {
-                        throw new NullReferenceException("Instance missing discretized feature value. ");
-                    }
-                    if (!factorProbStats[featureName].ContainsKey(featureValue))
+                    if (!factorProbStats[featureName].ContainsKey(featureValue ?? throw new NullReferenceException("Instance missing discretized feature value. ")))
                     {
                         factorProbStats[featureName].Add(featureValue, new Dictionary<string, double>());
                     }
                     foreach (string? label in TrainingInstances.Select(i => i.LabelValue).Distinct())
                     {
-                        if (label is null)
-                        {
-                            throw new NullReferenceException("Unlabeled instance is used as training instance. ");
-                        }
-                        factorProbStats[featureName][featureValue].Add(label, TrainingInstances.Count(i => i.LabelValue == label && i.Features[featureName].ValueDiscretized == featureValue) / (double)TrainingInstances.Count(i => i.LabelValue == label));
+                        factorProbStats[featureName][featureValue].Add(label ?? throw new NullReferenceException("Unlabeled instance is used as training instance. "), TrainingInstances.Count(i => i.LabelValue == label && i.Features[featureName].ValueDiscretized == featureValue) / (double)TrainingInstances.Count(i => i.LabelValue == label));
                     }
                 }
             }
@@ -176,13 +123,43 @@ namespace MLCore.Algorithm
 
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
-            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features)
+            // 1. Discretize testing instance
+            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
             {
-                testingInstance.Features[kvp.Key].ValueDiscretized = kvp.Value.ValueType == ValueType.Discrete ? kvp.Value.Value : PKIDiscretize(kvp.Value.Value, valueStats[kvp.Key]);
+                testingInstance.Features[kvp.Key].ValueDiscretized = kvp.Value.Value;
             }
 
+            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
+            {
+                double continuousValue = kvp.Value.Value;
+                if (continuousValue < intervalBoundaries[kvp.Key][0])
+                {
+                    testingInstance.Features[kvp.Key].ValueDiscretized = "interval0";
+                }
+                else if (continuousValue >= intervalBoundaries[kvp.Key][^1])
+                {
+                    testingInstance.Features[kvp.Key].ValueDiscretized = $"interval{interval - 1}";
+                }
+                else
+                {
+                    for (int i = 0; i < interval; i++)
+                    {
+                        if (continuousValue < intervalBoundaries[kvp.Key][i + 1] && continuousValue >= intervalBoundaries[kvp.Key][i])
+                        {
+                            testingInstance.Features[kvp.Key].ValueDiscretized = $"interval{i}";
+                            break;
+                        }
+                    }
+                    if (testingInstance.Features[kvp.Key].ValueDiscretized is null)
+                    {
+                        throw new Exception($"Failed to discretize {kvp.Key} ({continuousValue})");
+                    }
+                }
+            }
+
+            // 2. Calculate probabilities
             Dictionary<string, double> probStats = new Dictionary<string, double>();
-            foreach (string label in DistinctLabels)
+            foreach (string label in distinctLabels)
             {
                 double priorProb = resultProbStats[label];
                 double likelihood = 1;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using MLCore.Algorithm;
 
@@ -7,6 +8,7 @@ namespace MLCore
 {
     public static class CrossValidation
     {
+        [DebuggerStepThrough]
         private static Dictionary<int, List<Instance>> Fold(List<Instance> instances, int foldCount)
         {
             Random random = new Random();

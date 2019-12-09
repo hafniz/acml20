@@ -46,15 +46,14 @@ namespace MLCore.Algorithm
                 return SubNodes["greater than threshold"];
             }
 
-            public void CalcLeafProbDist()
+            // Provide priorProb <=> use Laplace correction; leave priorProb as null <=> do not use Laplace correction
+            public void CalcLeafProbDist(Dictionary<string, double>? priorProb)
             {
-                foreach (string? label in InstancesIn.Select(i => i.LabelValue).Distinct())
+                foreach (string? label in priorProb?.Select(kvp => kvp.Key) ?? InstancesIn.Select(i => i.LabelValue).Distinct())
                 {
-                    if (label is null)
-                    {
-                        throw new NullReferenceException("Unlabeled instances used in growing a tree. ");
-                    }
-                    LeafProbDist.Add(label, InstancesIn.Count(i => i.LabelValue == label) / (double)InstancesIn.Count);
+                    LeafProbDist.Add(label ?? throw new NullReferenceException("Unlabeled instances used in growing a tree. "), priorProb is null
+                        ? InstancesIn.Count(i => i.LabelValue == label) / (double)InstancesIn.Count
+                        : (InstancesIn.Count(i => i.LabelValue == label) + priorProb[label]) / (InstancesIn.Count + priorProb.Sum(kvp => kvp.Value)));
                 }
             }
 
@@ -93,8 +92,10 @@ namespace MLCore.Algorithm
             }
         }
 
+        private Dictionary<string, double>? priorProb = null;
+        private Node? rootNode;
+        public bool UseLaplaceCorrection { get; set; } = true;
         public DecisionTreeContext(List<Instance> trainingInstances) : base(trainingInstances) { }
-        private Node? RootNode { get; set; }
 
         [DebuggerStepThrough]
         private static double Xlog2X(double x) => x == 0 ? 0 : x * Log2(x);
@@ -230,7 +231,7 @@ namespace MLCore.Algorithm
             if (IsBaseCase())
             {
                 node.IsLeafNode = true;
-                node.CalcLeafProbDist();
+                node.CalcLeafProbDist(priorProb);
                 return;
             }
 
@@ -248,14 +249,23 @@ namespace MLCore.Algorithm
 
         public override void Train()
         {
+            if (UseLaplaceCorrection)
+            {
+                priorProb = new Dictionary<string, double>();
+                IEnumerable<string?> distinctLabels = TrainingInstances.Select(i => i.LabelValue).Distinct();
+                foreach (string? labelValue in distinctLabels)
+                {
+                    priorProb.Add(labelValue ?? throw new NullReferenceException("Unlabeled instance in training instances. "), TrainingInstances.Count(i => i.LabelValue == labelValue) / (double)TrainingInstances.Count);
+                }
+            }
             string splitFeatureName = GetSplitFeature(TrainingInstances, out double threshold);
-            RootNode = new Node(TrainingInstances, splitFeatureName, threshold);
-            SplitRecursive(RootNode, -1);
+            rootNode = new Node(TrainingInstances, splitFeatureName, threshold);
+            SplitRecursive(rootNode, -1);
         }
 
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
-            Node? currentNode = RootNode;
+            Node? currentNode = rootNode;
             if (currentNode is null)
             {
                 throw new NullReferenceException("Root node is null. ");
@@ -267,7 +277,7 @@ namespace MLCore.Algorithm
             return OrderedNormalized(currentNode.LeafProbDist);
         }
 
-        public override string ToString() => RootNode?.ToString() ?? "(Tree with null root node)";
+        public override string ToString() => rootNode?.ToString() ?? "(Tree with null root node)";
 
         /// <summary>
         /// For experimental use. Randomly generates rules of a 2-dimensional (values of both features are continuous), binary decision tree and a binary-labeled dataset classified by the tree. 

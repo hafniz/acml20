@@ -40,12 +40,6 @@
     <Compile Include="normality_skewness_and_kurtosis.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="no_mid_alphas.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="remove_last_column.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="plot_dataset.py" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

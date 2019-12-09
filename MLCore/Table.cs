@@ -9,18 +9,18 @@ namespace MLCore
     [DebuggerStepThrough]
     public class Table<T> : IEnumerable<List<T>>
     {
+        private readonly List<List<T>> data;
+        public int RowCount => data.Count;
+        public int ColumnCount => data.FirstOrDefault().Count;
+
         private Table() => throw new InvalidOperationException();
-        public Table(List<List<T>> data) => Data = data;
+        public Table(List<List<T>> source) => data = source;
 
-        protected List<List<T>> Data { get; set; }
-        public int RowCount => Data.Count;
-        public int ColumnCount => Data.FirstOrDefault().Count;
-
-        public List<T> this[int rowIndex] => Data[rowIndex];
+        public List<T> this[int rowIndex] => data[rowIndex];
         public Table<T> SelectRows(params int[] rowIndexes)
         {
             List<List<T>> data = new List<List<T>>();
-            rowIndexes.ToList().ForEach(r => data.Add(Data[r]));
+            rowIndexes.ToList().ForEach(r => data.Add(this.data[r]));
             return new Table<T>(data);
         }
         public static Table<T> JoinRows(params List<T>[] rows) => new Table<T>(rows.ToList());
@@ -28,7 +28,7 @@ namespace MLCore
         public List<T> SelectColumn(int columnIndex)
         {
             List<T> column = new List<T>();
-            Data.ForEach(r => column.Add(r[columnIndex]));
+            data.ForEach(r => column.Add(r[columnIndex]));
             return column;
         }
         public Table<T> SelectColumns(params int[] columnIndexes)
@@ -39,7 +39,7 @@ namespace MLCore
                 List<T> newRow = new List<T>();
                 foreach (int c in columnIndexes)
                 {
-                    newRow.Add(Data[r][c]);
+                    newRow.Add(this.data[r][c]);
                 }
                 data.Add(newRow);
             }
@@ -81,7 +81,8 @@ namespace MLCore
             }
             return new Table<string>(data);
         }
-        public IEnumerator<List<T>> GetEnumerator() => ((IEnumerable<List<T>>)Data).GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<List<T>>)Data).GetEnumerator();
+
+        public IEnumerator<List<T>> GetEnumerator() => ((IEnumerable<List<T>>)data).GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<List<T>>)data).GetEnumerator();
     }
 }
