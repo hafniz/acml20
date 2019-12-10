@@ -4,8 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>b1be48c2-9a8e-4fdd-836e-256026a0d104</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>
-    </StartupFile>
+    <StartupFile>oalpha_binFreq.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -25,6 +24,9 @@
     <Compile Include="accuracy_generation.py" />
     <Compile Include="accuracy_grouping.py" />
     <Compile Include="aggregate_histogram.py" />
+    <Compile Include="oalpha_binFreq.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="calculate_class_balance.py">
       <SubType>Code</SubType>
     </Compile>

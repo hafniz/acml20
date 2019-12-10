@@ -17,8 +17,9 @@ namespace MLCore
         /// <param name="featureTypes">A string specifying the ValueType of each feature (NOT including the label and index, if present), each feature represented by a char: 'c' for ValueType.Continuous, 'd' for ValueType.Discrete. Leaving as null is equivalent to marking all feature as continuous. </param>
         /// <param name="headerNameList">A string specifying name of each feature and label (NOT including the index, if present), separated by commas. </param>
         /// <param name="hasIndex">Specifies whether the first column of the file is the index of instance, which has no correlation with the label. If true, the first column of the file will be ignored. </param>
+        /// <param name="trimRight">Number of rightmost columns to be ignored when parsing the file. </param>
         /// <returns>A list of instances parsed from the CSV file. </returns>
-        public static List<Instance> ReadFromCsv(string filename, string? featureTypes = null, string? headerNameList = null, bool hasIndex = false)
+        public static List<Instance> ReadFromCsv(string filename, string? featureTypes = null, string? headerNameList = null, bool hasIndex = false, int trimRight = 0)
         {
             static bool AreDistinct(object[] values)
             {
@@ -43,20 +44,20 @@ namespace MLCore
             List<Instance> instances = new List<Instance>();
             IEnumerable<string> rows = File.ReadLines(filename);
 
-            int columnCount = rows.First().Split(',').Count();
+            int columnCount = rows.First().Split(',').Count() - trimRight;
             int effectiveColumnCount = hasIndex ? columnCount - 1 : columnCount;
             int featureCount = effectiveColumnCount - 1;
 
-            if (headerNameList != null && headerNameList.Count() != effectiveColumnCount)
+            if (headerNames != null && headerNames.Length != effectiveColumnCount)
             {
                 throw new ArgumentException($"Incorrect number of string segments in argument {nameof(headerNameList)}. ");
             }
-            if (featureTypes != null && featureTypes.Count() != featureCount)
+            if (featureTypes != null && featureTypes?.Count() != featureCount)
             {
                 throw new ArgumentException($"Incorrect number of characters in argument {nameof(featureTypes)}. ");
             }
 
-            bool hasHeader = !(headerNameList is null);
+            bool hasHeader = !(headerNames is null);
             foreach (string row in rows)
             {
                 if (hasHeader)
@@ -65,7 +66,7 @@ namespace MLCore
                     continue;
                 }
 
-                string[] fields = row.Split(',');
+                string[] fields = row.Split(',')[..^trimRight];
                 Dictionary<string, Feature> features = new Dictionary<string, Feature>();
 
                 for (int featureNumber = 0; featureNumber < featureCount; featureNumber++)
