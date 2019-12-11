@@ -53,7 +53,7 @@ namespace MLCore
             List<Instance> result = new List<Instance>();
             foreach (Instance testingInstance in testTemplate)
             {
-                double relativeAngle = Math.Atan2(testingInstance.Features["feature1"].Value - 0.5, testingInstance.Features["feature0"].Value - 0.5);
+                double relativeAngle = Math.Atan2(testingInstance["feature1"].Value - 0.5, testingInstance["feature0"].Value - 0.5);
                 result.Add(new Instance(testingInstance.Features, $"{GetRegionIndex(angles, relativeAngle) % 2}.0", testingInstance.LabelName));
             }
             return result;
@@ -233,10 +233,10 @@ namespace MLCore
                 List<Instance> instances = new List<Instance>();
                 foreach (List<string> line in rawData)
                 {
-                    instances.Add(new Instance(new Dictionary<string, Feature>()
+                    instances.Add(new Instance(new List<Feature>()
                     {
-                        { "feature0", new Feature(ValueType.Continuous, double.Parse(line[0]))},
-                        { "feature1", new Feature(ValueType.Continuous, double.Parse(line[1]))}
+                        new Feature("feature0", ValueType.Continuous, double.Parse(line[0])),
+                        new Feature("feature1", ValueType.Continuous, double.Parse(line[1]))
                     }, line[2]));
                 }
 
@@ -319,10 +319,10 @@ namespace MLCore
                         foreach (List<string> row in joinedTable)
                         {
                             // deserialize and create Instance
-                            Dictionary<string, Feature> derivedFeatures = new Dictionary<string, Feature>
+                            List<Feature> derivedFeatures = new List<Feature>()
                             {
-                                { "p0Feature", new Feature(ValueType.Continuous, double.Parse(row[0])) },
-                                { "p1Feature", new Feature(ValueType.Continuous, double.Parse(row[1])) }
+                                new Feature("p0Feature", ValueType.Continuous, double.Parse(row[0])),
+                                new Feature("p1Feature", ValueType.Continuous, double.Parse(row[1]))
                             };
                             derivedInstances = derivedInstances.Append(new Instance(derivedFeatures, row[^1], "label"));
                         }

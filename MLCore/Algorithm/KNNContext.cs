@@ -22,9 +22,9 @@ namespace MLCore.Algorithm
         private static double EuclideanDistance(Instance instance1, Instance instance2)
         {
             double distSumSquared = 0;
-            foreach (string featureName in instance1.Features.Select(kvp => kvp.Key))
+            foreach (string featureName in instance1.Features.Select(f => f.Name))
             {
-                distSumSquared += Pow(instance1.Features[featureName].Value - instance2.Features[featureName].Value, 2);
+                distSumSquared += Pow(instance1[featureName].Value - instance2[featureName].Value, 2);
             }
             return Sqrt(distSumSquared);
         }

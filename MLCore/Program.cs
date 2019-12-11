@@ -1,4 +1,4 @@
-﻿#define OALPHA_BINFREQ
+﻿#define XFCV_ACCURACY
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +11,7 @@ namespace MLCore
 {
     static class Program
     {
+        #region OALPHA_BINFREQ
 #if OALPHA_BINFREQ
         static int finishedCount = 0;
         static bool hasFinished = false;
@@ -67,7 +68,7 @@ namespace MLCore
 
                 if (writeDatasetWithAlpha)
                 {
-                    StringBuilder sb = new StringBuilder($"{string.Join(',', instances.First().Features.Select(kvp => kvp.Key))},label,alpha\r\n");
+                    StringBuilder sb = new StringBuilder($"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,alpha\r\n");
                     foreach ((Instance instance, double alpha) in results)
                     {
                         sb.AppendLine($"{instance.Serialize()},{alpha}");
@@ -91,6 +92,7 @@ namespace MLCore
             }
         }
 #endif
+        #endregion
 
         #region CALC_PROBDIST
 #if CALC_PROBDIST
@@ -181,7 +183,7 @@ namespace MLCore
 
         static void TryCvAccuracy(string filename)
         {
-            List<Instance> instances = CSV.ReadFromCsv(filename, headerNameList: "feature0,feature1,label", trimRight: 1);
+            List<Instance> instances = CSV.ReadFromCsv(filename, ..^1, hasHeader: true);
             filename = Path.GetFileNameWithoutExtension(filename);
             try
             {

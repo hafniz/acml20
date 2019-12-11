@@ -66,28 +66,28 @@ namespace MLCore.Algorithm
             // 1. Discretize training instances and fill in intervalBoundaries
             for (int i = 0; i < TrainingInstances.Count; i++)
             {
-                foreach (KeyValuePair<string, Feature> kvp in TrainingInstances[i].Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
+                foreach (Feature feature in TrainingInstances[i].Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
                 {
-                    TrainingInstances[i].Features[kvp.Key].ValueDiscretized = kvp.Value.Value;
+                    TrainingInstances[i][feature.Name].ValueDiscretized = feature.Value;
                 }
             }
 
-            foreach (string featureName in TrainingInstances.First().Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).Select(kvp => kvp.Key))
+            foreach (string featureName in TrainingInstances.First().Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).Select(f => f.Name))
             {
                 List<(Instance instance, double featureValue)> featureValues = new List<(Instance, double)>();
                 foreach (Instance instance in TrainingInstances)
                 {
-                    featureValues.Add((instance, instance.Features[featureName].Value));
+                    featureValues.Add((instance, instance[featureName].Value));
                 }
                 featureValues.Sort((tuple1, tuple2) => tuple1.featureValue.CompareTo(tuple2.featureValue));
                 int finishDiscretizedCount = 0;
                 intervalBoundaries[featureName] = new double[interval];
                 for (int i = 0; i < interval; i++)
                 {
-                    intervalBoundaries[featureName][i] = featureValues[finishDiscretizedCount].instance.Features[featureName].Value;
+                    intervalBoundaries[featureName][i] = featureValues[finishDiscretizedCount].instance[featureName].Value;
                     for (int j = 0; j < instancesCountInEachInterval[i]; j++)
                     {
-                        featureValues[finishDiscretizedCount].instance.Features[featureName].ValueDiscretized = $"interval{i}";
+                        featureValues[finishDiscretizedCount].instance[featureName].ValueDiscretized = $"interval{i}";
                         finishDiscretizedCount++;
                     }
                 }
@@ -100,14 +100,14 @@ namespace MLCore.Algorithm
             }
 
             // 3. Fill in factorProbStats
-            foreach (string featureName in TrainingInstances.First().Features.Select(kvp => kvp.Key))
+            foreach (string featureName in TrainingInstances.First().Features.Select(f => f.Name))
             {
                 if (!factorProbStats.ContainsKey(featureName))
                 {
                     factorProbStats.Add(featureName, new Dictionary<string, Dictionary<string, double>>());
                 }
 
-                foreach (string? featureValue in TrainingInstances.Select(i => i.Features[featureName].ValueDiscretized).Distinct())
+                foreach (string? featureValue in TrainingInstances.Select(i => i[featureName].ValueDiscretized).Distinct())
                 {
                     if (!factorProbStats[featureName].ContainsKey(featureValue ?? throw new NullReferenceException("Instance missing discretized feature value. ")))
                     {
@@ -115,7 +115,7 @@ namespace MLCore.Algorithm
                     }
                     foreach (string? label in TrainingInstances.Select(i => i.LabelValue).Distinct())
                     {
-                        factorProbStats[featureName][featureValue].Add(label ?? throw new NullReferenceException("Unlabeled instance is used as training instance. "), TrainingInstances.Count(i => i.LabelValue == label && i.Features[featureName].ValueDiscretized == featureValue) / (double)TrainingInstances.Count(i => i.LabelValue == label));
+                        factorProbStats[featureName][featureValue].Add(label ?? throw new NullReferenceException("Unlabeled instance is used as training instance. "), TrainingInstances.Count(i => i.LabelValue == label && i[featureName].ValueDiscretized == featureValue) / (double)TrainingInstances.Count(i => i.LabelValue == label));
                     }
                 }
             }
@@ -124,35 +124,35 @@ namespace MLCore.Algorithm
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
             // 1. Discretize testing instance
-            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
+            foreach (Feature feature in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
             {
-                testingInstance.Features[kvp.Key].ValueDiscretized = kvp.Value.Value;
+                testingInstance[feature.Name].ValueDiscretized = feature.Value;
             }
 
-            foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
+            foreach (Feature feature in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
             {
-                double continuousValue = kvp.Value.Value;
-                if (continuousValue < intervalBoundaries[kvp.Key][0])
+                double continuousValue = feature.Value;
+                if (continuousValue < intervalBoundaries[feature.Name][0])
                 {
-                    testingInstance.Features[kvp.Key].ValueDiscretized = "interval0";
+                    testingInstance[feature.Name].ValueDiscretized = "interval0";
                 }
-                else if (continuousValue >= intervalBoundaries[kvp.Key][^1])
+                else if (continuousValue >= intervalBoundaries[feature.Name][^1])
                 {
-                    testingInstance.Features[kvp.Key].ValueDiscretized = $"interval{interval - 1}";
+                    testingInstance[feature.Name].ValueDiscretized = $"interval{interval - 1}";
                 }
                 else
                 {
                     for (int i = 0; i < interval; i++)
                     {
-                        if (continuousValue < intervalBoundaries[kvp.Key][i + 1] && continuousValue >= intervalBoundaries[kvp.Key][i])
+                        if (continuousValue < intervalBoundaries[feature.Name][i + 1] && continuousValue >= intervalBoundaries[feature.Name][i])
                         {
-                            testingInstance.Features[kvp.Key].ValueDiscretized = $"interval{i}";
+                            testingInstance[feature.Name].ValueDiscretized = $"interval{i}";
                             break;
                         }
                     }
-                    if (testingInstance.Features[kvp.Key].ValueDiscretized is null)
+                    if (testingInstance[feature.Name].ValueDiscretized is null)
                     {
-                        throw new Exception($"Failed to discretize {kvp.Key} ({continuousValue})");
+                        throw new Exception($"Failed to discretize {feature.Name} ({continuousValue})");
                     }
                 }
             }
@@ -163,9 +163,9 @@ namespace MLCore.Algorithm
             {
                 double priorProb = resultProbStats[label];
                 double likelihood = 1;
-                foreach (KeyValuePair<string, Feature> kvp in testingInstance.Features)
+                foreach (Feature feature in testingInstance.Features)
                 {
-                    likelihood *= factorProbStats[kvp.Key][kvp.Value.ValueDiscretized ?? throw new NullReferenceException("Feature value not discretized. ")][label];
+                    likelihood *= factorProbStats[feature.Name][feature.ValueDiscretized ?? throw new NullReferenceException("Feature value not discretized. ")][label];
                 }
                 double postProbToScale = likelihood * priorProb;
                 // postProb = (likelihood * priorProb / evidence) = (postProbToScale / evidence). The denominator is omitted since it is the same for all label values.

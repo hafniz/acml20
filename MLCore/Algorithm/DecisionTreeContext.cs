@@ -35,11 +35,11 @@ namespace MLCore.Algorithm
                 {
                     throw new NullReferenceException("SubNodes is null. ");
                 }
-                if (instance.Features[SplitFeatureName].ValueType == ValueType.Discrete)
+                if (instance[SplitFeatureName].ValueType == ValueType.Discrete)
                 {
-                    return SubNodes[instance.Features[SplitFeatureName].Value];
+                    return SubNodes[instance[SplitFeatureName].Value];
                 }
-                if (instance.Features[SplitFeatureName].Value <= SplitThreshold)
+                if (instance[SplitFeatureName].Value <= SplitThreshold)
                 {
                     return SubNodes["less than or equal to threshold"];
                 }
@@ -110,30 +110,30 @@ namespace MLCore.Algorithm
 
         private static double GainRatioDiscrete(List<Instance> instances, string featureName)
         {
-            if (instances.First().Features[featureName].ValueType != ValueType.Discrete)
+            if (instances.First()[featureName].ValueType != ValueType.Discrete)
             {
                 throw new ArgumentException($"Values of {featureName} is not of discrete type. ");
             }
 
             double sum = 0;
-            instances.Select(i => i.Features[featureName].Value).Distinct().ToList().ForEach(v =>
-            sum += instances.Count(i => i.Features[featureName].Value == v) / (double)instances.Count * Entropy(instances.Where(i => i.Features[featureName].Value == v)));
+            instances.Select(i => i[featureName].Value).Distinct().ToList().ForEach(v =>
+            sum += instances.Count(i => i[featureName].Value == v) / (double)instances.Count * Entropy(instances.Where(i => i[featureName].Value == v)));
             double infoGain = Entropy(instances) - sum;
             double splitRatio = 0;
-            instances.Select(i => i.Features[featureName].Value).Distinct().ToList().ForEach(v =>
-            splitRatio -= Xlog2X(instances.Count(i => i.Features[featureName].Value == v) / (double)instances.Count));
+            instances.Select(i => i[featureName].Value).Distinct().ToList().ForEach(v =>
+            splitRatio -= Xlog2X(instances.Count(i => i[featureName].Value == v) / (double)instances.Count));
             return infoGain / splitRatio;
         }
 
         // If not successful, return value will be 0 and out threshold will be double.NaN
         private static double GainRatioContinuous(List<Instance> instances, string featureName, out double threshold)
         {
-            if (instances.First().Features[featureName].ValueType != ValueType.Continuous)
+            if (instances.First()[featureName].ValueType != ValueType.Continuous)
             {
                 throw new ArgumentException($"Values of {featureName} is not of continuous type. ");
             }
 
-            List<double> distinctValues = instances.Select(i => i.Features[featureName].Value).Distinct().ToList().ConvertAll(v => (double)v);
+            List<double> distinctValues = instances.Select(i => i[featureName].Value).Distinct().ToList().ConvertAll(v => (double)v);
             threshold = double.NaN;
             double maxGainRatio = 0;
             foreach (double tryThreshold in distinctValues)
@@ -141,9 +141,9 @@ namespace MLCore.Algorithm
                 List<Instance> dichotomized = new List<Instance>();
                 foreach (Instance instance in instances)
                 {
-                    dichotomized.Add(new Instance(new Dictionary<string, Feature> { {
-                        featureName, new Feature(ValueType.Discrete, instance.Features[featureName].Value <= tryThreshold ? $"less than or equal to {tryThreshold}" : $"greater than {tryThreshold}")
-                    } }, instance.LabelValue, instance.LabelName));
+                    dichotomized.Add(new Instance(new List<Feature> {
+                        new Feature(featureName, ValueType.Discrete, instance[featureName].Value <= tryThreshold ? $"less than or equal to {tryThreshold}" : $"greater than {tryThreshold}")
+                    }, instance.LabelValue, instance.LabelName));
                 }
                 double tryGainRatio = GainRatioDiscrete(dichotomized, featureName);
                 if (tryGainRatio > maxGainRatio)
@@ -161,9 +161,9 @@ namespace MLCore.Algorithm
             string featureName = string.Empty;
             double maxGainRatio = 0;
             threshold = double.NaN;
-            foreach (string tryFeatureName in instances.First().Features.Select(kvp => kvp.Key))
+            foreach (string tryFeatureName in instances.First().Features.Select(f => f.Name))
             {
-                if (instances.First().Features[tryFeatureName].ValueType == ValueType.Discrete)
+                if (instances.First()[tryFeatureName].ValueType == ValueType.Discrete)
                 {
                     double tryGainRatio = GainRatioDiscrete(instances, tryFeatureName);
                     if (tryGainRatio > maxGainRatio)
@@ -191,15 +191,15 @@ namespace MLCore.Algorithm
         {
             //      featureValue, instances
             Dictionary<string, List<Instance>> subGroups = new Dictionary<string, List<Instance>>();
-            if (instances.First().Features[featureName].ValueType == ValueType.Discrete)
+            if (instances.First()[featureName].ValueType == ValueType.Discrete)
             {
-                foreach (string featureValue in instances.Select(i => i.Features[featureName].Value).Distinct())
+                foreach (string featureValue in instances.Select(i => i[featureName].Value).Distinct())
                 {
                     subGroups.Add(featureValue, new List<Instance>());
                 }
                 foreach (Instance instance in instances)
                 {
-                    subGroups[(string)instance.Features[featureName].Value].Add(instance);
+                    subGroups[(string)instance[featureName].Value].Add(instance);
                 }
             }
             else
@@ -208,7 +208,7 @@ namespace MLCore.Algorithm
                 subGroups.Add("greater than threshold", new List<Instance>());
                 foreach (Instance instance in instances)
                 {
-                    if (instance.Features[featureName].Value <= threshold)
+                    if (instance[featureName].Value <= threshold)
                     {
                         subGroups["less than or equal to threshold"].Add(instance);
                     }
