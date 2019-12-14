@@ -224,8 +224,8 @@ namespace MLCore.Algorithm
         private void SplitRecursive(Node node, int currentDepth)
         {
             bool IsBaseCase() => node.InstancesIn.Count <= 1 // No more than 1 instance in the node
-                              || node.InstancesIn.Select(i => i.LabelValue).Distinct().Count() <= 1 // All instances in the node are class-homogeneous
-                              || string.IsNullOrEmpty(node.SplitFeatureName); // None of the features provide any gain ratio (information gain)
+               || node.InstancesIn.Select(i => i.LabelValue).Distinct().Count() <= 1 // All instances in the node are class-homogeneous
+               || string.IsNullOrEmpty(node.SplitFeatureName); // None of the features provide any gain ratio (information gain)
 
             currentDepth++;
             if (IsBaseCase())

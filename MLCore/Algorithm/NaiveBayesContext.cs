@@ -29,14 +29,7 @@ namespace MLCore.Algorithm
 
             // 2. Determine number of intervals
             int sqrtInstancesFloor = (int)Sqrt(trainingInstances.Count);
-            if (Sqrt(trainingInstances.Count) == sqrtInstancesFloor)
-            {
-                interval = sqrtInstancesFloor;
-            }
-            else
-            {
-                interval = TrainingInstances.Count < sqrtInstancesFloor * (sqrtInstancesFloor + 1) ? sqrtInstancesFloor : sqrtInstancesFloor + 1;
-            }
+            interval = Sqrt(trainingInstances.Count) == sqrtInstancesFloor ? sqrtInstancesFloor : TrainingInstances.Count < sqrtInstancesFloor * (sqrtInstancesFloor + 1) ? sqrtInstancesFloor : sqrtInstancesFloor + 1;
 
             // 3. Determine number of instances in each interval
             instancesCountInEachInterval = new int[interval];
@@ -66,13 +59,13 @@ namespace MLCore.Algorithm
             // 1. Discretize training instances and fill in intervalBoundaries
             for (int i = 0; i < TrainingInstances.Count; i++)
             {
-                foreach (Feature feature in TrainingInstances[i].Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
+                foreach (Feature feature in TrainingInstances[i].Features.Where(f => f.ValueType == ValueType.Discrete))
                 {
                     TrainingInstances[i][feature.Name].ValueDiscretized = feature.Value;
                 }
             }
 
-            foreach (string featureName in TrainingInstances.First().Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous).Select(f => f.Name))
+            foreach (string featureName in TrainingInstances.First().Features.Where(f => f.ValueType == ValueType.Continuous).Select(f => f.Name))
             {
                 List<(Instance instance, double featureValue)> featureValues = new List<(Instance, double)>();
                 foreach (Instance instance in TrainingInstances)
@@ -124,12 +117,12 @@ namespace MLCore.Algorithm
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
             // 1. Discretize testing instance
-            foreach (Feature feature in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Discrete))
+            foreach (Feature feature in testingInstance.Features.Where(f => f.ValueType == ValueType.Discrete))
             {
                 testingInstance[feature.Name].ValueDiscretized = feature.Value;
             }
 
-            foreach (Feature feature in testingInstance.Features.Where(kvp => kvp.Value.ValueType == ValueType.Continuous))
+            foreach (Feature feature in testingInstance.Features.Where(f => f.ValueType == ValueType.Continuous))
             {
                 double continuousValue = feature.Value;
                 if (continuousValue < intervalBoundaries[feature.Name][0])

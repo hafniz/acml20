@@ -163,7 +163,7 @@ namespace MLCore
                     {
                         sb.Append("," + field);
                     }
-                    rows.Add(sb.ToString().Substring(1));
+                    rows.Add(sb.ToString()[1..]);
                 }
             }
             File.WriteAllLines(filename, rows);

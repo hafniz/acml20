@@ -96,12 +96,12 @@ namespace MLCore.Algorithm
         /// <returns>A list of tuples consisting of each instance in TrainingInstances and its corresponding alpha value. </returns>
         public List<(Instance, double)> GetAllAlphaValues()
         {
-            IEnumerable<(Instance, double)> alphas = new List<(Instance, double)>();
+            List<(Instance, double)> alphas = new List<(Instance, double)>();
             foreach (Instance trainingInstance in TrainingInstances)
             {
-                alphas = alphas.Append((trainingInstance, GetAlphaValue(trainingInstance)));
+                alphas.Add((trainingInstance, GetAlphaValue(trainingInstance)));
             }
-            return alphas.ToList();
+            return alphas;
         }
     }
 }

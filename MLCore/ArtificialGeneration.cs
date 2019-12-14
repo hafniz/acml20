@@ -47,7 +47,7 @@ namespace MLCore
             {
                 StringBuilder sb = new StringBuilder();
                 angles.ForEach(d => sb.Append($"{d}, "));
-                File.WriteAllText(logFilename, sb.ToString().Substring(0, sb.Length - 2));
+                File.WriteAllText(logFilename, sb.ToString()[..^2]);
             }
 
             List<Instance> result = new List<Instance>();
@@ -255,7 +255,7 @@ namespace MLCore
                     {
                         Instance[] instancesCopy = new Instance[instances.Count];
                         instances.CopyTo(instancesCopy);
-                        int targetTreeDepth = int.Parse(Path.GetFileNameWithoutExtension(filename).Substring(2, 2));
+                        int targetTreeDepth = int.Parse(Path.GetFileNameWithoutExtension(filename)[2..4]);
                         Dictionary<Instance, (Dictionary<string, double>, int)> cvResults = CrossValidation.CvProbDist(instancesCopy.ToList(), type, targetTreeDepth);
 
                         foreach (KeyValuePair<Instance, (Dictionary<string, double>, int)> kvp in cvResults)
