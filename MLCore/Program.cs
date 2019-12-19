@@ -215,20 +215,20 @@ namespace MLCore
         #region ALPHA_ALLOPS
 #if ALPHA_ALLOPS
         static readonly StringBuilder logger = new StringBuilder();
-        static readonly StringBuilder allBinFreqBuilder = new StringBuilder("filename,knnsqrt-bin0,knnsqrt-bin1,knnsqrt-bin2,knnsqrt-bin3,knnsqrt-bin4,knnsqrt-bin5,knnsqrt-bin6,knnsqrt-bin7,knnsqrt-bin8,knnsqrt-bin9,knnallrew-bin0,knnallrew-bin1,knnallrew-bin2,knnallrew-bin3,knnallrew-bin4,knnallrew-bin5,knnallrew-bin6,knnallrew-bin7,knnallrew-bin8,knnallrew-bin9,nbpkid-bin0,nbpkid-bin1,nbpkid-bin2,nbpkid-bin3,nbpkid-bin4,nbpkid-bin5,nbpkid-bin6,nbpkid-bin7,nbpkid-bin8,nbpkid-bin9,dtc44-bin0,dtc44-bin1,dtc44-bin2,dtc44-bin3,dtc44-bin4,dtc44-bin5,dtc44-bin6,dtc44-bin7,dtc44-bin8,dtc44-bin9\r\n");
+        static readonly StringBuilder allBinFreqBuilder = new StringBuilder("filename,knnsqrt-bin0,knnsqrt-bin1,knnsqrt-bin2,knnsqrt-bin3,knnsqrt-bin4,knnsqrt-bin5,knnsqrt-bin6,knnsqrt-bin7,knnsqrt-bin8,knnsqrt-bin9,knnallrew-bin0,knnallrew-bin1,knnallrew-bin2,knnallrew-bin3,knnallrew-bin4,knnallrew-bin5,knnallrew-bin6,knnallrew-bin7,knnallrew-bin8,knnallrew-bin9,nbpkid-bin0,nbpkid-bin1,nbpkid-bin2,nbpkid-bin3,nbpkid-bin4,nbpkid-bin5,nbpkid-bin6,nbpkid-bin7,nbpkid-bin8,nbpkid-bin9\r\n");
         static int finishedCount = 0;
         static bool hasFinished = false;
 
         static void Main(string[] args)
         {
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-            //foreach (string filename in Directory.EnumerateFiles("..\\..\\..\\..\\Dataset\\UCI\\ECOC8030files\\UCI_ECOC8030"))
+            //foreach (string filename in Directory.EnumerateFiles("..\\..\\..\\..\\Dataset\\UCI\\ECOC8030files\\ECOC8030"))
             //{
             //    TryAlphaAllOps(filename);
             //}
-            int maxDegreeOfParallelism = (int)(Environment.ProcessorCount * (args.Length == 0 ? 1 : double.Parse(args[0])));
+            int maxDegreeOfParallelism = args.Length == 0 ? -1 : (int)(Environment.ProcessorCount * double.Parse(args[0]));
             Console.WriteLine($"Max degree of parallelism: {maxDegreeOfParallelism} ");
-            Parallel.ForEach(Directory.EnumerateFiles("..\\datasets"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryAlphaAllOps(filename));
+            Parallel.ForEach(Directory.EnumerateFiles("..\\ECOC8030"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryAlphaAllOps(filename));
             logger.AppendLine($"Finished all {finishedCount}. ");
             Console.WriteLine($"Finished all {finishedCount}. ");
             Output();
@@ -257,8 +257,8 @@ namespace MLCore
                 {
                     (new KNNContext(instances) { NeighboringMethod = KNNContext.NeighboringOption.SqrtNeighbors }, "knnsqrt"),
                     (new KNNContext(instances) { NeighboringMethod = KNNContext.NeighboringOption.AllNeighborsWithReweighting }, "knnallrew"),
-                    (new NaiveBayesContext(instances), "nbpkid"),
-                    (new DecisionTreeContext(instances) { UseLaplaceCorrection = true }, "dtc44")
+                    (new NaiveBayesContext(instances), "nbpkid")
+                    //(new DecisionTreeContext(instances) { UseLaplaceCorrection = true }, "dtc44")
                 })
                 {
                     // 2.1 calc prob dist
@@ -323,7 +323,7 @@ namespace MLCore
                     }
                     tableFields.Add(rowFields);
                 }
-                CSV.WriteToCsv($"..\\datasets with alpha\\{filename}.csv", new Table<string>(tableFields), $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,{string.Join(',', datasetInfo.First().Value.Select(kvp => kvp.Key))}");
+                CSV.WriteToCsv($"..\\ECOC8030F\\{filename}.csv", new Table<string>(tableFields), $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,{string.Join(',', datasetInfo.First().Value.Select(kvp => kvp.Key))}");
 
                 logger.AppendLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {++finishedCount})");
                 Console.WriteLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {finishedCount})");
@@ -349,7 +349,7 @@ namespace MLCore
 
         static void Output()
         {
-            using StreamWriter allBinFreqWriter = new StreamWriter("..\\datasets-allBinFreq.csv");
+            using StreamWriter allBinFreqWriter = new StreamWriter("..\\ecoc8030-allBinFreq.csv");
             allBinFreqWriter.Write(allBinFreqBuilder);
             using StreamWriter logWriter = new StreamWriter("..\\log.txt");
             logWriter.Write(logger);
