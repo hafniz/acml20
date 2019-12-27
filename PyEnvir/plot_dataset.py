@@ -1,15 +1,15 @@
 import os, csv 
 from matplotlib import pyplot
 
-datasetPath = "..\\Dataset\\artificial-new\\level0\\rebalanced\\dataset\\R11"
-figurePath = "..\\Dataset\\artificial-new\\level0\\rebalanced\\dataset visualization\\R11"
+datasetPath = "..\\Dataset\\a270\\a270-dataset"
+figurePath = "..\\Dataset\\a270\\a270-plots"
 
 for filename in os.listdir(datasetPath):
     with open(os.path.join(datasetPath, filename)) as file:
-        table = [row for row in csv.reader(file)][1:]
+        table = [row for row in csv.reader(file)]
         labelStats = [[], []]
         for r in range(len(table)):
-            labelStats[int(float(table[r][-2]))].append(r)
+            labelStats[int(float(table[r][2]))].append(r)
         labelColors = ["#005BBB", "#FFD500"]
         pyplot.clf()
         pyplot.axes().set_aspect(aspect = 1)

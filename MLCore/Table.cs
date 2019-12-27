@@ -16,28 +16,28 @@ namespace MLCore
         private Table() => throw new InvalidOperationException();
         public Table(List<List<T>> source) => data = source;
 
-        public List<T> this[int rowIndex] => data[rowIndex];
-        public Table<T> SelectRows(params int[] rowIndexes)
+        public List<T> this[Index rowIndex] => data[rowIndex];
+        public Table<T> SelectRows(params Index[] rowIndices)
         {
             List<List<T>> data = new List<List<T>>();
-            rowIndexes.ToList().ForEach(r => data.Add(this.data[r]));
+            rowIndices.ToList().ForEach(r => data.Add(this.data[r]));
             return new Table<T>(data);
         }
         public static Table<T> JoinRows(params List<T>[] rows) => new Table<T>(rows.ToList());
 
-        public List<T> SelectColumn(int columnIndex)
+        public List<T> SelectColumn(Index columnIndex)
         {
             List<T> column = new List<T>();
             data.ForEach(r => column.Add(r[columnIndex]));
             return column;
         }
-        public Table<T> SelectColumns(params int[] columnIndexes)
+        public Table<T> SelectColumns(params Index[] columnIndices)
         {
             List<List<T>> data = new List<List<T>>();
             for (int r = 0; r < RowCount; r++)
             {
                 List<T> newRow = new List<T>();
-                foreach (int c in columnIndexes)
+                foreach (Index c in columnIndices)
                 {
                     newRow.Add(this.data[r][c]);
                 }
@@ -80,6 +80,31 @@ namespace MLCore
                 data.Add(avgRow);
             }
             return new Table<string>(data);
+        }
+
+        public static Table<T> MergeHorizontal(Table<T> left, Table<T> right)
+        {
+            List<List<T>> mergedData = new List<List<T>>();
+            for (int r = 0; r < Math.Min(left.RowCount, right.RowCount); r++)
+            {
+                mergedData.Add(left[r].Concat(right[r]).ToList());
+            }
+            if (left.RowCount > right.RowCount)
+            {
+                for (int r = 0; r < left.RowCount - right.RowCount; r++)
+                {
+                    mergedData.Add(left[r].Concat(Enumerable.Repeat(default(T), right.ColumnCount)).ToList());
+                }
+            }
+            else if (right.RowCount > left.RowCount)
+            {
+                for (int r = 0; r < right.RowCount - left.RowCount; r++)
+                {
+                    mergedData.Add(Enumerable.Repeat(default(T), left.ColumnCount).Concat(right[r]).ToList());
+                }
+            }
+
+            return new Table<T>(mergedData);
         }
 
         public IEnumerator<List<T>> GetEnumerator() => ((IEnumerable<List<T>>)data).GetEnumerator();

@@ -47,7 +47,7 @@ namespace MLCore
                     {
                         Debug.Fail("Incorrect string segments or duplicated values found in headerNameList, generating default headers... ");
                         // Generate default headers
-                        for (int i = 0; i < actualColumnCount - 1; i++)
+                        for (int i = 0; i < headersParsed.Length - 1; i++)
                         {
                             headersParsed[i] = $"feature{i}";
                         }
@@ -65,12 +65,25 @@ namespace MLCore
                     headersParsed = headerRowFields;
                 }
             }
+            else
+            {
+                // Generate default headers
+                for (int i = 0; i < headersParsed.Length - 1; i++)
+                {
+                    headersParsed[i] = $"feature{i}";
+                }
+                headersParsed[^1] = "label";
+            }
 
             foreach (string rowRaw in dataRaw)
             {
                 if (hasHeader)
                 {
                     hasHeader = false;
+                    continue;
+                }
+                if (string.IsNullOrWhiteSpace(rowRaw))
+                {
                     continue;
                 }
 
@@ -85,26 +98,30 @@ namespace MLCore
         /// Parse a CSV file and return a table of string values. 
         /// </summary>
         /// <param name="filename">Path and filename of the CSV file to be parsed. </param>
-        /// <param name="hasHeader">Whether the first row of the CSV file should be skipped. If true, the table will only include values starting from the second row. </param>
+        /// <param name="skipFirstRow">Whether the first row of the CSV file should be skipped. If true, the table will only include values starting from the second row. </param>
         /// <returns>A table of string values parsed from the CSV file. </returns>
-        public static Table<string> ReadFromCsv(string filename, bool hasHeader = false) => ReadFromCsv(filename, .., hasHeader);
+        public static Table<string> ReadFromCsv(string filename, bool skipFirstRow = false) => ReadFromCsv(filename, .., skipFirstRow);
 
         /// <summary>
         /// Parse a range of columns of a CSV file and return a table of string values. 
         /// </summary>
         /// <param name="filename">Path and filename of the CSV file to be parsed. </param>
         /// <param name="columns">Range of columns in the CSV file to be parsed. </param>
-        /// <param name="skipHeader">Whether the first row of the CSV file should be skipped. If true, the table will only include values starting from the second row. </param>
+        /// <param name="skipFirstRow">Whether the first row of the CSV file should be skipped. If true, the table will only include values starting from the second row. </param>
         /// <returns>A table of string values parsed from the CSV file. </returns>
-        public static Table<string> ReadFromCsv(string filename, Range columns, bool skipHeader = false)
+        public static Table<string> ReadFromCsv(string filename, Range columns, bool skipFirstRow = false)
         {
             IEnumerable<string> dataRaw = File.ReadLines(filename);
             List<List<string>> dataParsed = new List<List<string>>();
             foreach (string rowRaw in dataRaw)
             {
-                if (skipHeader)
+                if (skipFirstRow)
                 {
-                    skipHeader = false;
+                    skipFirstRow = false;
+                    continue;
+                }
+                if (string.IsNullOrWhiteSpace(rowRaw))
+                {
                     continue;
                 }
                 string[] fields = rowRaw.Split(',')[columns];

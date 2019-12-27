@@ -1,11 +1,8 @@
-﻿#define ALPHA_ALLOPS
+﻿#define XFCV_CMD
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using MLCore.Algorithm;
 
 namespace MLCore
 {
@@ -215,20 +212,20 @@ namespace MLCore
         #region ALPHA_ALLOPS
 #if ALPHA_ALLOPS
         static readonly StringBuilder logger = new StringBuilder();
-        static readonly StringBuilder allBinFreqBuilder = new StringBuilder("filename,knnsqrt-bin0,knnsqrt-bin1,knnsqrt-bin2,knnsqrt-bin3,knnsqrt-bin4,knnsqrt-bin5,knnsqrt-bin6,knnsqrt-bin7,knnsqrt-bin8,knnsqrt-bin9,knnallrew-bin0,knnallrew-bin1,knnallrew-bin2,knnallrew-bin3,knnallrew-bin4,knnallrew-bin5,knnallrew-bin6,knnallrew-bin7,knnallrew-bin8,knnallrew-bin9,nbpkid-bin0,nbpkid-bin1,nbpkid-bin2,nbpkid-bin3,nbpkid-bin4,nbpkid-bin5,nbpkid-bin6,nbpkid-bin7,nbpkid-bin8,nbpkid-bin9\r\n");
+        static readonly StringBuilder allBinFreqBuilder = new StringBuilder("filename,knnallrew-bin0,knnallrew-bin1,knnallrew-bin2,knnallrew-bin3,knnallrew-bin4,knnallrew-bin5,knnallrew-bin6,knnallrew-bin7,knnallrew-bin8,knnallrew-bin9,nbpkid-bin0,nbpkid-bin1,nbpkid-bin2,nbpkid-bin3,nbpkid-bin4,nbpkid-bin5,nbpkid-bin6,nbpkid-bin7,nbpkid-bin8,nbpkid-bin9,dtc44-bin0,dtc44-bin1,dtc44-bin2,dtc44-bin3,dtc44-bin4,dtc44-bin5,dtc44-bin6,dtc44-bin7,dtc44-bin8,dtc44-bin9\r\n");
         static int finishedCount = 0;
         static bool hasFinished = false;
 
         static void Main(string[] args)
         {
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-            //foreach (string filename in Directory.EnumerateFiles("..\\..\\..\\..\\Dataset\\UCI\\ECOC8030files\\ECOC8030"))
+            //foreach (string filename in Directory.EnumerateFiles("..\\a270 with alpha"))
             //{
             //    TryAlphaAllOps(filename);
             //}
             int maxDegreeOfParallelism = args.Length == 0 ? -1 : (int)(Environment.ProcessorCount * double.Parse(args[0]));
-            Console.WriteLine($"Max degree of parallelism: {maxDegreeOfParallelism} ");
-            Parallel.ForEach(Directory.EnumerateFiles("..\\ECOC8030"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryAlphaAllOps(filename));
+            Console.WriteLine($"Max degree of parallelism: {(maxDegreeOfParallelism == -1 ? "unlimited" : maxDegreeOfParallelism.ToString())} ");
+            Parallel.ForEach(Directory.EnumerateFiles("..\\a270 with alpha"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryAlphaAllOps(filename));
             logger.AppendLine($"Finished all {finishedCount}. ");
             Console.WriteLine($"Finished all {finishedCount}. ");
             Output();
@@ -255,10 +252,9 @@ namespace MLCore
                 // 2. do work
                 foreach ((AlgorithmContextBase context, string symbol) in new List<(AlgorithmContextBase context, string symbol)>
                 {
-                    (new KNNContext(instances) { NeighboringMethod = KNNContext.NeighboringOption.SqrtNeighbors }, "knnsqrt"),
                     (new KNNContext(instances) { NeighboringMethod = KNNContext.NeighboringOption.AllNeighborsWithReweighting }, "knnallrew"),
-                    (new NaiveBayesContext(instances), "nbpkid")
-                    //(new DecisionTreeContext(instances) { UseLaplaceCorrection = true }, "dtc44")
+                    (new NaiveBayesContext(instances), "nbpkid"),
+                    (new DecisionTreeContext(instances) { UseLaplaceCorrection = true }, "dtc44")
                 })
                 {
                     // 2.1 calc prob dist
@@ -266,20 +262,20 @@ namespace MLCore
                     foreach (Instance instance in instances)
                     {
                         Dictionary<string, double> result = context.GetProbDist(instance);
-                        double p0 = result.ContainsKey("0.0") ? result["0.0"] : 0.0;
-                        double p1 = result.ContainsKey("1.0") ? result["1.0"] : 0.0;
+                        double p0 = result.ContainsKey("0") ? result["0"] : 0.0;
+                        double p1 = result.ContainsKey("1") ? result["1"] : 0.0;
                         bool isCorrect = true;
                         if (p0 > p1)
                         {
-                            isCorrect = instance.LabelValue == "0.0";
+                            isCorrect = instance.LabelValue == "0";
                         }
                         else if (p1 > p0)
                         {
-                            isCorrect = instance.LabelValue == "1.0";
+                            isCorrect = instance.LabelValue == "1";
                         }
                         datasetInfo[instance].Add($"{symbol}-p0", p0);
                         datasetInfo[instance].Add($"{symbol}-p1", p1);
-                        datasetInfo[instance].Add($"{symbol}-iscorrect", isCorrect ? 1.0 : 0.0);
+                        datasetInfo[instance].Add($"{symbol}-iscorrect", isCorrect ? 1 : 0);
                     }
 
                     // 2.2 calc alpha
@@ -323,7 +319,7 @@ namespace MLCore
                     }
                     tableFields.Add(rowFields);
                 }
-                CSV.WriteToCsv($"..\\ECOC8030F\\{filename}.csv", new Table<string>(tableFields), $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,{string.Join(',', datasetInfo.First().Value.Select(kvp => kvp.Key))}");
+                CSV.WriteToCsv($"..\\a270-allAlphas\\{filename}.csv", new Table<string>(tableFields), $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,{string.Join(',', datasetInfo.First().Value.Select(kvp => kvp.Key))}");
 
                 logger.AppendLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {++finishedCount})");
                 Console.WriteLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {finishedCount})");
@@ -349,11 +345,136 @@ namespace MLCore
 
         static void Output()
         {
-            using StreamWriter allBinFreqWriter = new StreamWriter("..\\ecoc8030-allBinFreq.csv");
+            using StreamWriter allBinFreqWriter = new StreamWriter("..\\a270-allBinFreqs.csv");
             allBinFreqWriter.Write(allBinFreqBuilder);
             using StreamWriter logWriter = new StreamWriter("..\\log.txt");
             logWriter.Write(logger);
         }
+#endif
+        #endregion
+
+        #region A270
+#if A270
+        static readonly StringBuilder logger = new StringBuilder();
+        static int finishedCount = 0;
+        static bool hasFinished = false;
+
+        static void Main()
+        {
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+            //foreach (string filename in Directory.EnumerateFiles("..\\a270-datasets"))
+            //{
+            //    TryGetBaseAlphas(filename);
+            //}
+            Parallel.ForEach(Directory.EnumerateFiles("..\\a270-datasets"), filename => TryGetBaseAlphas(filename));
+            logger.AppendLine($"Finished all {finishedCount}. ");
+            Console.WriteLine($"Finished all {finishedCount}. ");
+            Output();
+            hasFinished = true;
+        }
+
+        private static void TryGetBaseAlphas(string filename)
+        {
+            try
+            {
+                List<Instance> instances = CSV.ReadFromCsv(filename, null);
+                StringBuilder sb = new StringBuilder("feature0,feature1,label,alpha\r\n");
+                foreach ((Instance instance, double alpha) in new KNNContext(instances).GetAllAlphaValues())
+                {
+                    sb.AppendLine($"{instance.Serialize()},{alpha}");
+                }
+                using StreamWriter sw = new StreamWriter($"..\\a270 with alpha\\{Path.GetFileNameWithoutExtension(filename)}.csv");
+                sw.Write(sb);
+                logger.AppendLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {++finishedCount})");
+                Console.WriteLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {finishedCount})");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"{DateTime.Now}\t{e.GetType().ToString()} encountered in processing {filename}, skipping this file");
+                logger.AppendLine(new string('>', 64));
+                logger.AppendLine($"{DateTime.Now}\t{e.GetType().ToString()} encountered in processing {filename}, skipping this file");
+                logger.AppendLine(e.ToString());
+                logger.AppendLine(new string('>', 64));
+            }
+        }
+
+        static void CurrentDomain_ProcessExit(object? sender, EventArgs e)
+        {
+            if (!hasFinished)
+            {
+                logger.AppendLine($"Program exited after finishing {finishedCount}. ");
+                Output();
+            }
+        }
+
+        static void Output()
+        {
+            using StreamWriter logWriter = new StreamWriter("..\\log.txt");
+            logWriter.Write(logger);
+        }
+#endif
+        #endregion
+
+        #region ALPHA_TO_BINFREQ
+#if ALPHA_TO_BINFREQ
+        static readonly StringBuilder resultsBuilder = new StringBuilder("filename,knnsqrt-adiff-bin0,knnsqrt-adiff-bin1,knnsqrt-adiff-bin2,knnsqrt-adiff-bin3,knnsqrt-adiff-bin4,knnsqrt-adiff-bin5,knnsqrt-adiff-bin6,knnsqrt-adiff-bin7,knnsqrt-adiff-bin8,knnsqrt-adiff-bin9,knnallrew-adiff-bin0,knnallrew-adiff-bin1,knnallrew-adiff-bin2,knnallrew-adiff-bin3,knnallrew-adiff-bin4,knnallrew-adiff-bin5,knnallrew-adiff-bin6,knnallrew-adiff-bin7,knnallrew-adiff-bin8,knnallrew-adiff-bin9,nbpkid-adiff-bin0,nbpkid-adiff-bin1,nbpkid-adiff-bin2,nbpkid-adiff-bin3,nbpkid-adiff-bin4,nbpkid-adiff-bin5,nbpkid-adiff-bin6,nbpkid-adiff-bin7,nbpkid-adiff-bin8,nbpkid-adiff-bin9,dtc44-adiff-bin0,dtc44-adiff-bin1,dtc44-adiff-bin2,dtc44-adiff-bin3,dtc44-adiff-bin4,dtc44-adiff-bin5,dtc44-adiff-bin6,dtc44-adiff-bin7,dtc44-adiff-bin8,dtc44-adiff-bin9\r\n");
+        static int finishedCount = 0;
+
+        static void Main()
+        {
+            foreach (string filename in Directory.EnumerateFiles("C:\\Users\\CHENH\\source\\repos\\MachineLearning\\Dataset\\UCI\\ECOC8030\\ECOC8030-allAlphas"))
+            {
+                CalcBinFreq(filename);
+            }
+            using StreamWriter sw = new StreamWriter("..\\ecoc8030-diffBinFreq.csv");
+            sw.Write(resultsBuilder);
+        }
+
+        private static void CalcBinFreq(string filename)
+        {
+            StringBuilder sb = new StringBuilder(Path.GetFileNameWithoutExtension(filename));
+            Table<string> table = CSV.ReadFromCsv(filename, true);
+
+            foreach (Index index in new Index[] { ^16, ^11, ^6, ^1 })
+            {
+                List<double> valueColumn = table.SelectColumn(index).ConvertAll(s => double.Parse(s));
+                double[] binFreq = new double[10];
+                for (int i = -5; i < 5; i++)
+                {
+                    double binLowerBound = i / 5.0;
+                    double binUpperBound = i == 4 ? 1.01 : (i + 1) / 5.0;
+                    binFreq[i + 5] = valueColumn.Count(d => d < binUpperBound && d >= binLowerBound) / (double)valueColumn.Count;
+                }
+                sb.Append("," + string.Join(',', binFreq));
+            }
+
+            resultsBuilder.AppendLine(sb.ToString());
+            Console.WriteLine(++finishedCount);
+        }
+#endif
+        #endregion
+
+        #region XFCV_CMD
+#if XFCV_CMD
+        static void Main()
+        {
+            int finishedCount = 0;
+            StringBuilder sb = new StringBuilder("filename,dtc44-cv0,dtc44-cv1,dtc44-cv2,dtc44-cv3,dtc44-cv4,dtc44-cv5,dtc44-cv6,dtc44-cv7,dtc44-cv8,dtc44-cv9\r\n");
+            foreach (string filename in Directory.EnumerateFiles("..\\ECOC8030-arff").Select(filename => Path.GetFileNameWithoutExtension(filename)))
+            {
+                double[] accuracy = new double[10];
+                for (int i = 0; i < 10; i++)
+                {
+                    string[] rows = File.ReadAllLines($"..\\ECOC8030-xfcv\\{filename}.{i}.csv")[1..^1];
+                    accuracy[i] = rows.Count(row => string.IsNullOrWhiteSpace(row.Split(',')[3])) / (double)rows.Length;
+                }
+                sb.AppendLine($"{filename[..^1]},{string.Join(',', accuracy)}");
+                Console.WriteLine(++finishedCount);
+            }
+            using StreamWriter sw = new StreamWriter("..\\ECOC8030-dtc44-accuracy.csv");
+            sw.Write(sb);
+        }
+
 #endif
         #endregion
     }
