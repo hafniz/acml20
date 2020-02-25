@@ -1,9 +1,10 @@
-﻿#define XFCV_ACCURACY
+﻿#define NOOP
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
+using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using MLCore.Algorithm;
 
 namespace MLCore
@@ -150,10 +151,10 @@ namespace MLCore
         static void Main(string[] args)
         {
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-            foreach (string filename in Directory.EnumerateFiles($"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\source\\repos\\MachineLearning\\Dataset\\a270\\A270RERES\\A270RERES-new"))
-            {
-                TryCvAccuracy(filename);
-            }
+            //foreach (string filename in Directory.EnumerateFiles($"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\source\\repos\\MachineLearning\\Dataset\\a270\\A270RERES\\A270RERES-new"))
+            //{
+            //    TryCvAccuracy(filename);
+            //}
             int maxDegreeOfParallelism = (int)(Environment.ProcessorCount * double.Parse(args[0]));
             Console.WriteLine($"Max degree of parallelism: {maxDegreeOfParallelism} ");
             Parallel.ForEach(Directory.EnumerateFiles("..\\datasets"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryCvAccuracy(filename));
@@ -219,7 +220,7 @@ namespace MLCore
 
         static void Main(string[] args)
         {
-            Directory.SetCurrentDirectory($"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\source\\repos\\MachineLearning\\Dataset\\A270RES\\A270RES-new");
+            Directory.SetCurrentDirectory($"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\source\\repos\\MachineLearning\\Dataset\\B739\\B739-noAlphas");
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
             //foreach (string filename in Directory.EnumerateFiles(".\\"))
             //{
@@ -249,7 +250,7 @@ namespace MLCore
                 }
 
                 filename = Path.GetFileNameWithoutExtension(filename);
-                ////StringBuilder fileBinFreqBuilder = new StringBuilder($"{filename},");
+                //StringBuilder fileBinFreqBuilder = new StringBuilder($"{filename},");
 
                 // 2. do work
                 foreach ((AlgorithmContextBase context, string symbol) in new List<(AlgorithmContextBase context, string symbol)>
@@ -300,15 +301,15 @@ namespace MLCore
                     }
 
                     // 2.3 record bin freq
-                    ////for (int i = 0; i < 10; i++)
-                    ////{
-                    ////    double binLowerBound = i / 10.0;
-                    ////    double binUpperBound = i == 9 ? 1.01 : (i + 1) / 10.0;
-                    ////    fileBinFreqBuilder.Append(derivedAlphas.Count(a => a < binUpperBound && a >= binLowerBound) / (double)instances.Count);
-                    ////    fileBinFreqBuilder.Append(',');
-                    ////}
+                    //for (int i = 0; i < 10; i++)
+                    //{
+                    //    double binLowerBound = i / 10.0;
+                    //    double binUpperBound = i == 9 ? 1.01 : (i + 1) / 10.0;
+                    //    fileBinFreqBuilder.Append(derivedAlphas.Count(a => a < binUpperBound && a >= binLowerBound) / (double)instances.Count);
+                    //    fileBinFreqBuilder.Append(',');
+                    //}
                 }
-                ////allBinFreqBuilder.AppendLine(fileBinFreqBuilder.ToString()[..^1]);
+                //allBinFreqBuilder.AppendLine(fileBinFreqBuilder.ToString()[..^1]);
 
                 // 3. write dataset with alphas 
                 List<List<string>> tableFields = new List<List<string>>();
@@ -321,7 +322,7 @@ namespace MLCore
                     }
                     tableFields.Add(rowFields);
                 }
-                CSV.WriteToCsv($"..\\A270RES-allAlphas\\{filename}.csv", new Table<string>(tableFields), $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,{string.Join(',', datasetInfo.First().Value.Select(kvp => kvp.Key))}");
+                CSV.WriteToCsv($"..\\B739-allAlphas\\{filename}.csv", new Table<string>(tableFields), $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,{string.Join(',', datasetInfo.First().Value.Select(kvp => kvp.Key))}");
 
                 logger.AppendLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {++finishedCount})");
                 Console.WriteLine($"{DateTime.Now}\tSuccessfully finished {filename} (Total: {finishedCount})");
@@ -347,7 +348,7 @@ namespace MLCore
 
         static void Output()
         {
-            using StreamWriter allBinFreqWriter = new StreamWriter("..\\a270-allBinFreqs.csv");
+            using StreamWriter allBinFreqWriter = new StreamWriter("..\\B739-allBinFreqs.csv");
             allBinFreqWriter.Write(allBinFreqBuilder);
             using StreamWriter logWriter = new StreamWriter("..\\log.txt");
             logWriter.Write(logger);
@@ -424,11 +425,11 @@ namespace MLCore
 
         static void Main()
         {
-            foreach (string filename in Directory.EnumerateFiles($"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\source\\repos\\MachineLearning\\Dataset\\A270RES\\A270RES-allAlphas"))
+            foreach (string filename in Directory.EnumerateFiles($"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\source\\repos\\MachineLearning\\Dataset\\B739\\B739-allAlphas"))
             {
                 CalcBinFreq(filename);
             }
-            using StreamWriter sw = new StreamWriter("..\\A270RES-allBinFreqs.csv");
+            using StreamWriter sw = new StreamWriter("..\\B739-allBinFreqs.csv");
             sw.Write(resultsBuilder);
         }
 
@@ -499,9 +500,9 @@ namespace MLCore
         {
             Random random = new Random();
             Directory.SetCurrentDirectory($"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\source\\repos\\MachineLearning\\Dataset\\a270");
-            foreach (string filename in Directory.EnumerateFiles(".\\a270-raw by label\\2"))
+            foreach (string filename in Directory.EnumerateFiles(".\\original\\a270-raw by label\\3"))
             {
-                for (int i = 8; i <= 12; i++)
+                for (int i = 1; i <= 2; i++)
                 {
                     List<string> rows = File.ReadAllLines(filename).ToList();
                     List<string> newRows = new List<string>();
@@ -511,11 +512,26 @@ namespace MLCore
                         newRows.Add(rows[rowNumber]);
                         rows.RemoveAt(rowNumber);
                     }
-                    File.WriteAllLines($".\\A270RES\\Batch 3\\RES-new\\{Path.GetFileNameWithoutExtension(filename)}.RES{i}.csv", newRows);
+                    File.WriteAllLines($".\\RES Test 3\\Test3-new\\{Path.GetFileNameWithoutExtension(filename)}.RES{i}.csv", newRows);
                 }
             }
         }
 #endif
         #endregion
+
+        static void Main()
+        {
+            int i = 1;
+            StringBuilder sb = new StringBuilder("filename,majority%\r\n");
+            foreach (string filename in Directory.EnumerateFiles("C:\\Users\\CHENH\\source\\repos\\MachineLearning\\Dataset\\UCI\\ECOC8030\\ECOC8030-raw"))
+            {
+                List<string> labels = CSV.ReadFromCsv(filename, true).SelectColumn(^1);
+                int majorityCount = Math.Max(labels.Count(s => s == "0.0"), labels.Count(s => s == "1.0"));
+                sb.AppendLine($"{Path.GetFileNameWithoutExtension(filename)},{ majorityCount / (double)labels.Count}");
+                Console.WriteLine(i++);
+            }
+            using StreamWriter sw = new StreamWriter("C:\\Users\\CHENH\\Desktop\\CBstats.csv");
+            sw.Write(sb);
+        }
     }
 }

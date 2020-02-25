@@ -1,8 +1,8 @@
 import os, csv 
 from matplotlib import pyplot
 
-datasetPath = "..\\Dataset\\a270\\a270-dataset"
-figurePath = "..\\Dataset\\a270\\a270-plots"
+datasetPath = "C:\\Users\\CHENH\\Desktop\\dataset eg"
+figurePath = "C:\\Users\\CHENH\\Desktop\\dataset eg"
 
 for filename in os.listdir(datasetPath):
     with open(os.path.join(datasetPath, filename)) as file:
