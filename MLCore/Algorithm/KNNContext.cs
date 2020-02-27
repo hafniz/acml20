@@ -103,5 +103,24 @@ namespace MLCore.Algorithm
             }
             return alphas;
         }
+
+        public double GetBetaValue(Instance testingInstance)
+        {
+            int homoCount = TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue);
+            IEnumerable<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1);
+            double c = neighbors.Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / EuclideanDistance(i, testingInstance));
+            double d = TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / EuclideanDistance(i, testingInstance));
+            return c / d;
+        }
+
+        public List<(Instance, double)> GetAllBetaValues()
+        {
+            List<(Instance, double)> betas = new List<(Instance, double)>();
+            foreach (Instance trainingInstance in TrainingInstances)
+            {
+                betas.Add((trainingInstance, GetBetaValue(trainingInstance)));
+            }
+            return betas;
+        }
     }
 }

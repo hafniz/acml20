@@ -1,10 +1,10 @@
-﻿#define NOOP
+﻿#define BETA_EXPR
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using MLCore.Algorithm;
 
 namespace MLCore
@@ -519,19 +519,28 @@ namespace MLCore
 #endif
         #endregion
 
-        static void Main()
+        #region BETA_EXPR
+#if BETA_EXPR
+        public static int finishedCount = 0;
+
+        public static void Main()
         {
-            int i = 1;
-            StringBuilder sb = new StringBuilder("filename,majority%\r\n");
-            foreach (string filename in Directory.EnumerateFiles("C:\\Users\\CHENH\\source\\repos\\MachineLearning\\Dataset\\UCI\\ECOC8030\\ECOC8030-raw"))
-            {
-                List<string> labels = CSV.ReadFromCsv(filename, true).SelectColumn(^1);
-                int majorityCount = Math.Max(labels.Count(s => s == "0.0"), labels.Count(s => s == "1.0"));
-                sb.AppendLine($"{Path.GetFileNameWithoutExtension(filename)},{ majorityCount / (double)labels.Count}");
-                Console.WriteLine(i++);
-            }
-            using StreamWriter sw = new StreamWriter("C:\\Users\\CHENH\\Desktop\\CBstats.csv");
-            sw.Write(sb);
+            Parallel.ForEach(Directory.EnumerateFiles("C:\\Users\\CHENH\\source\\repos\\MachineLearning\\Dataset\\A270\\original\\a270-raw"), filename => CalcBeta(filename));
+            Parallel.ForEach(Directory.EnumerateFiles("C:\\Users\\CHENH\\source\\repos\\MachineLearning\\Dataset\\UCI\\ECOC8030\\ECOC8030-raw"), filename => CalcBeta(filename));
         }
+
+        public static void CalcBeta(string filename)
+        {
+            List<Instance> instances = CSV.ReadFromCsv(filename, null);
+            StringBuilder sb = new StringBuilder($"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,beta\r\n");
+            foreach ((Instance instance, double beta) in new KNNContext(instances).GetAllBetaValues())
+            {
+                sb.AppendLine($"{instance.Serialize()},{beta}");
+            }
+            File.WriteAllText($"C:\\Users\\CHENH\\Desktop\\beta\\{Path.GetFileName(filename)}", sb.ToString());
+            Console.WriteLine(++finishedCount);
+        }
+#endif
+        #endregion
     }
 }
