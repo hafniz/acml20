@@ -525,6 +525,7 @@ namespace MLCore
         public static TimeSpan totalProcessTime = TimeSpan.Zero;
         public static void Main(string[] args) => Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions { MaxDegreeOfParallelism = (int)(double.Parse(args[0]) * Environment.ProcessorCount) }, filename => CalcBeta(filename));
 
+
         public static void CalcBeta(string filename)
         {
             DateTime processStartTime = DateTime.Now;

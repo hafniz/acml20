@@ -22,6 +22,7 @@ namespace MLCore.Algorithm
         private static double EuclideanDistance(Instance instance1, Instance instance2)
         {
             double distSumSquared = 0;
+
             foreach (string featureName in instance1.Features.Select(f => f.Name))
             {
                 distSumSquared += Pow(instance1[featureName].Value - instance2[featureName].Value, 2);
@@ -67,11 +68,18 @@ namespace MLCore.Algorithm
             otherInstances.Remove(testingInstance);
 
             Dictionary<Instance, double> distStats = new Dictionary<Instance, double>();
+
+            otherInstances.ForEach(otherInstance => distStats.Add(otherInstance, EuclideanDistance(testingInstance, otherInstance)));
+            /*
             foreach (Instance otherInstance in otherInstances)
             {
                 distStats.Add(otherInstance, EuclideanDistance(testingInstance, otherInstance));
             }
+            */
+
+
             distStats = distStats.OrderBy(kvp => kvp.Value).Take(k).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
             foreach (KeyValuePair<Instance, double> kvp in distStats)
             {
                 yield return kvp.Key;
@@ -86,8 +94,12 @@ namespace MLCore.Algorithm
         public double GetAlphaValue(Instance testingInstance)
         {
             int homoCount = TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue);
+
+            return GetNeighbors(testingInstance, homoCount - 1).Count(i => i.LabelValue == testingInstance.LabelValue) / (double)homoCount;
+            /*
             IEnumerable<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1);
             return neighbors.Count(i => i.LabelValue == testingInstance.LabelValue) / (double)homoCount;
+            */
         }
 
         /// <summary>
@@ -97,13 +109,20 @@ namespace MLCore.Algorithm
         public List<(Instance, double)> GetAllAlphaValues()
         {
             List<(Instance, double)> alphas = new List<(Instance, double)>();
+            TrainingInstances.ForEach(trainingInstance => alphas.Add((trainingInstance, GetAlphaValue(trainingInstance))));
+            /*
             foreach (Instance trainingInstance in TrainingInstances)
             {
                 alphas.Add((trainingInstance, GetAlphaValue(trainingInstance)));
             }
+            */
             return alphas;
         }
 
+        public double GetBetaValue(Instance testingInstance)=> GetNeighbors(testingInstance, TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue) - 1).Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance))) / TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
+
+
+        /*
         public double GetBetaValue(Instance testingInstance)
         {
             int homoCount = TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue);
@@ -112,14 +131,17 @@ namespace MLCore.Algorithm
             double d = TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
             return c / d;
         }
+        */
 
         public List<(Instance, double)> GetAllBetaValues()
         {
             List<(Instance, double)> betas = new List<(Instance, double)>();
+            TrainingInstances.ForEach(trainingInstance=> betas.Add((trainingInstance, GetBetaValue(trainingInstance))));
+            /*
             foreach (Instance trainingInstance in TrainingInstances)
             {
                 betas.Add((trainingInstance, GetBetaValue(trainingInstance)));
-            }
+            }*/
             return betas;
         }
     }
