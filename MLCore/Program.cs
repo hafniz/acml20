@@ -524,18 +524,24 @@ namespace MLCore
         public static int finishedCount = 0;
         public static DateTime programStartTime = DateTime.Now;
         public static TimeSpan totalProcessTime = TimeSpan.Zero;
-        public static void Main() => Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions { MaxDegreeOfParallelism = 2 * Environment.ProcessorCount }, filename => CalcBeta(filename));
+        public static void Main() => Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions { MaxDegreeOfParallelism =/* 2 * */ Environment.ProcessorCount }, filename => CalcBeta(filename));
 
         public static void CalcBeta(string filename)
         {
             DateTime processStartTime = DateTime.Now;
 
             List<Instance> instances = CSV.ReadFromCsv(filename, null);
-            StringBuilder sb = new StringBuilder($"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,beta\r\n");
+            StringBuilder sb = new StringBuilder($"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,beta\r\n") {  };
+
+            new KNNContext(instances).GetAllBetaValues().ForEach((t) => sb.AppendLine($"{t.Item1.Serialize()},{t.Item2}"));
+
+            /*
             foreach ((Instance instance, double beta) in new KNNContext(instances).GetAllBetaValues())
             {
                 sb.AppendLine($"{instance.Serialize()},{beta}");
             }
+            */
+
             File.WriteAllText($"..\\results\\{Path.GetFileName(filename)}", sb.ToString());
             File.Move(filename, $"..\\finished\\{Path.GetFileName(filename)}");
 
