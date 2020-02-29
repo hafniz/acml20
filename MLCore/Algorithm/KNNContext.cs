@@ -108,8 +108,8 @@ namespace MLCore.Algorithm
         {
             int homoCount = TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue);
             IEnumerable<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1);
-            double c = neighbors.Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / EuclideanDistance(i, testingInstance));
-            double d = TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / EuclideanDistance(i, testingInstance));
+            double c = neighbors.Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
+            double d = TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
             return c / d;
         }
 

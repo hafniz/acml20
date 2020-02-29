@@ -522,23 +522,26 @@ namespace MLCore
         #region BETA_EXPR
 #if BETA_EXPR
         public static int finishedCount = 0;
-
-        public static void Main()
-        {
-            Parallel.ForEach(Directory.EnumerateFiles("C:\\Users\\CHENH\\source\\repos\\MachineLearning\\Dataset\\A270\\original\\a270-raw"), filename => CalcBeta(filename));
-            Parallel.ForEach(Directory.EnumerateFiles("C:\\Users\\CHENH\\source\\repos\\MachineLearning\\Dataset\\UCI\\ECOC8030\\ECOC8030-raw"), filename => CalcBeta(filename));
-        }
+        public static DateTime programStartTime = DateTime.Now;
+        public static TimeSpan totalProcessTime = TimeSpan.Zero;
+        public static void Main() => Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions { MaxDegreeOfParallelism = 2 * Environment.ProcessorCount }, filename => CalcBeta(filename));
 
         public static void CalcBeta(string filename)
         {
+            DateTime processStartTime = DateTime.Now;
+
             List<Instance> instances = CSV.ReadFromCsv(filename, null);
             StringBuilder sb = new StringBuilder($"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,beta\r\n");
             foreach ((Instance instance, double beta) in new KNNContext(instances).GetAllBetaValues())
             {
                 sb.AppendLine($"{instance.Serialize()},{beta}");
             }
-            File.WriteAllText($"C:\\Users\\CHENH\\Desktop\\beta\\{Path.GetFileName(filename)}", sb.ToString());
-            Console.WriteLine(++finishedCount);
+            File.WriteAllText($"..\\results\\{Path.GetFileName(filename)}", sb.ToString());
+            File.Move(filename, $"..\\finished\\{Path.GetFileName(filename)}");
+
+            DateTime processEndTime = DateTime.Now;
+            TimeSpan processTimeSpan = processEndTime - processStartTime;
+            Console.WriteLine($"{processEndTime}\t{++finishedCount}\t{Path.GetFileNameWithoutExtension(filename)}\t\t{processTimeSpan:hh\\:mm\\:ss}\t{totalProcessTime += processTimeSpan:hh\\:mm\\:ss}\t{processEndTime - programStartTime:hh\\:mm\\:ss}");
         }
 #endif
         #endregion
