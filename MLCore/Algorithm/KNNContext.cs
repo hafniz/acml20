@@ -19,16 +19,7 @@ namespace MLCore.Algorithm
         public KNNContext(List<Instance> trainingInstances) : base(trainingInstances) { }
 
         [DebuggerStepThrough]
-        private static double EuclideanDistance(Instance instance1, Instance instance2)
-        {
-            double distSumSquared = 0;
-
-            foreach (string featureName in instance1.Features.Select(f => f.Name))
-            {
-                distSumSquared += Pow(instance1[featureName].Value - instance2[featureName].Value, 2);
-            }
-            return Sqrt(distSumSquared);
-        }
+        private static double EuclideanDistance(Instance instance1, Instance instance2) => Sqrt(instance1.Features.Sum(f => (double)Pow(f.Value - instance2[f.Name].Value, 2)));
 
         public override Dictionary<string, double> GetProbDist(Instance testingInstance)
         {
@@ -68,16 +59,7 @@ namespace MLCore.Algorithm
             otherInstances.Remove(testingInstance);
 
             Dictionary<Instance, double> distStats = new Dictionary<Instance, double>();
-
-            otherInstances.ForEach(otherInstance => distStats.Add(otherInstance, EuclideanDistance(testingInstance, otherInstance)));
-            /*
-            foreach (Instance otherInstance in otherInstances)
-            {
-                distStats.Add(otherInstance, EuclideanDistance(testingInstance, otherInstance));
-            }
-            */
-
-
+            otherInstances.ForEach(i => distStats.Add(i, EuclideanDistance(testingInstance, i)));
             distStats = distStats.OrderBy(kvp => kvp.Value).Take(k).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             foreach (KeyValuePair<Instance, double> kvp in distStats)
@@ -94,55 +76,63 @@ namespace MLCore.Algorithm
         public double GetAlphaValue(Instance testingInstance)
         {
             int homoCount = TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue);
-
             return GetNeighbors(testingInstance, homoCount - 1).Count(i => i.LabelValue == testingInstance.LabelValue) / (double)homoCount;
-            /*
-            IEnumerable<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1);
-            return neighbors.Count(i => i.LabelValue == testingInstance.LabelValue) / (double)homoCount;
-            */
         }
 
         /// <summary>
         /// For experimental use. Calculates alpha values for each of the TrainingInstances. 
         /// </summary>
         /// <returns>A list of tuples consisting of each instance in TrainingInstances and its corresponding alpha value. </returns>
-        public List<(Instance, double)> GetAllAlphaValues()
+        public IEnumerable<(Instance, double)> GetAllAlphaValues()
         {
-            List<(Instance, double)> alphas = new List<(Instance, double)>();
-            TrainingInstances.ForEach(trainingInstance => alphas.Add((trainingInstance, GetAlphaValue(trainingInstance))));
-            /*
             foreach (Instance trainingInstance in TrainingInstances)
             {
-                alphas.Add((trainingInstance, GetAlphaValue(trainingInstance)));
+                yield return (trainingInstance, GetAlphaValue(trainingInstance));
             }
-            */
-            return alphas;
         }
 
-        public double GetBetaValue(Instance testingInstance)=> GetNeighbors(testingInstance, TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue) - 1).Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance))) / TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
+        public double GetBetaValue(Instance testingInstance) => GetNeighbors(testingInstance, TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue) - 1).Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance))) / TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
 
-
-        /*
-        public double GetBetaValue(Instance testingInstance)
+        public IEnumerable<(Instance, double)> GetAllBetaValues()
         {
-            int homoCount = TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue);
-            IEnumerable<Instance> neighbors = GetNeighbors(testingInstance, homoCount - 1);
-            double c = neighbors.Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
-            double d = TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
-            return c / d;
-        }
-        */
-
-        public List<(Instance, double)> GetAllBetaValues()
-        {
-            List<(Instance, double)> betas = new List<(Instance, double)>();
-            TrainingInstances.ForEach(trainingInstance=> betas.Add((trainingInstance, GetBetaValue(trainingInstance))));
-            /*
-            foreach (Instance trainingInstance in TrainingInstances)
+            Dictionary<string, int> homoCount = new Dictionary<string, int>();
+            TrainingInstances.ForEach(i =>
             {
-                betas.Add((trainingInstance, GetBetaValue(trainingInstance)));
-            }*/
-            return betas;
+                if (!homoCount.ContainsKey(i.LabelValue ?? throw new NullReferenceException("Cannot compute beta value for an unlabeled instance. ")))
+                {
+                    homoCount.Add(i.LabelValue, TrainingInstances.Count(instance => instance.LabelValue == i.LabelValue));
+                }
+            });
+
+            Dictionary<Instance, Dictionary<Instance, double>> distStats = new Dictionary<Instance, Dictionary<Instance, double>>();
+            TrainingInstances.ForEach(i => distStats.Add(i, new Dictionary<Instance, double>()));
+            TrainingInstances.ForEach(i =>
+            {
+                bool hasCheckedSelf = false;
+                TrainingInstances.ForEach(other =>
+                {
+                    if (!hasCheckedSelf)
+                    {
+                        if (other == i)
+                        {
+                            hasCheckedSelf = true;
+                        }
+                    }
+                    else
+                    {
+                        double distance = EuclideanDistance(i, other);
+                        distStats[i].Add(other, distance);
+                        distStats[other].Add(i, distance);
+                    }
+                });
+            });
+
+            foreach (Instance i in TrainingInstances)
+            {
+                double c = distStats[i].OrderBy(kvp => kvp.Value).Take(homoCount[i.LabelValue ?? throw new NullReferenceException("Cannot compute beta value for an unlabeled instance. ")] - 1).Sum(kvp => 1.0 / (1.0 + kvp.Value));
+                double d = distStats[i].Sum(kvp => 1.0 / (1.0 + kvp.Value));
+                yield return (i, c / d);
+            }
         }
     }
 }

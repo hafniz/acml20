@@ -329,7 +329,7 @@ namespace MLCore
 
                         KNNContext context = new KNNContext(derivedInstances.ToList());
                         // assume ordered as original instances
-                        List<(Instance instance, double alphaValue)> alphas = context.GetAllAlphaValues();
+                        List<(Instance instance, double alphaValue)> alphas = context.GetAllAlphaValues().ToList();
                         tenAlphaColumns.Add(alphas.Select(t => t.alphaValue).ToList());
                     }
 
