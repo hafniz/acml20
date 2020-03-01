@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 
 namespace MLCore
 {
@@ -29,7 +28,7 @@ namespace MLCore
     }
 
     [DebuggerStepThrough]
-    public class Instance : ICloneable
+    public class Instance : ICloneable, IEquatable<Instance>
     {
         public List<Feature> Features { get; }
         public string? LabelValue { get; }
@@ -62,35 +61,40 @@ namespace MLCore
             LabelName = headers[^1];
         }
 
-        public override string ToString()
-        {
-            StringBuilder sb = new StringBuilder($"Instance ({LabelName ?? "label"}: {LabelValue ?? "unlabeled"})\n");
-            foreach (Feature feature in Features)
-            {
-                sb.Append($" {feature.Name}: {feature.Value}{(feature.ValueDiscretized is null ? "" : " (" + feature.ValueDiscretized + ")")}\n");
-            }
-            return sb.ToString();
-        }
+        public override string ToString() => $"Instance ({LabelName ?? "label"}: {LabelValue ?? "unlabeled"})\n {string.Join(' ', Features.Select(f => $"{f.Name}: {f.Value}{(f.ValueDiscretized is null ? "" : $" ({f.ValueDiscretized})")}"))}";
 
-        public string Serialize()
-        {
-            StringBuilder sb = new StringBuilder("");
-            foreach (dynamic featureValue in Features.Select(f => f.Value))
-            {
-                sb.Append(featureValue.ToString() + ",");
-            }
-            sb.Append(LabelValue);
-            return sb.ToString();
-        }
+        public string Serialize() => $"{string.Join(',', Features.Select(f => f.Value.ToString()))},{LabelValue}";
 
         public object Clone()
         {
             Instance newInstance = new Instance(new List<Feature>(), LabelValue, LabelName);
-            foreach (Feature feature in Features)
-            {
-                newInstance.Features.Add(new Feature(feature.Name, feature.ValueType, feature.Value));
-            }
+            Features.ForEach(f => newInstance.Features.Add(new Feature(f.Name, f.ValueType, f.Value)));
             return newInstance;
+        }
+
+        public bool Equals(Instance other)
+        {
+            if (other.LabelValue != LabelValue)
+            {
+                return false;
+            }
+            if (other.Features.Count != Features.Count)
+            {
+                return false;
+            }
+            List<string> otherInstanceFeatureNames = other.Features.Select(f => f.Name).ToList();
+            foreach (Feature f in Features)
+            {
+                if (!otherInstanceFeatureNames.Contains(f.Name))
+                {
+                    return false;
+                }
+                if (other[f.Name].Value != f.Value)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }
