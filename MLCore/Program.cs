@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using MLCore.Algorithm;
 
 namespace MLCore
@@ -523,14 +522,15 @@ namespace MLCore
         public static int finishedCount = 0;
         public static DateTime programStartTime = DateTime.Now;
         public static TimeSpan totalProcessTime = TimeSpan.Zero;
-        public static void Main(string[] args) => CalcBeta("..//pending//49_knn.csv"); //=> Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions { MaxDegreeOfParallelism = (int)(args.Length == 0 ? 1.0 : double.Parse(args[0]) * Environment.ProcessorCount) }, filename => CalcBeta(filename));
+        public static void Main(string[] args) => CalcBeta("..\\pending\\49_knn.csv"); //Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions { MaxDegreeOfParallelism = (int)(args.Length == 0 ? 1.0 : double.Parse(args[0]) * Environment.ProcessorCount) }, filename => CalcBeta(filename));
+
 
         public static void CalcBeta(string filename)
         {
             DateTime processStartTime = DateTime.Now;
             List<Instance> instances = CSV.ReadFromCsv(filename, null);
-            File.WriteAllText($"..\\results\\{Path.GetFileName(filename)}", $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,beta\r\n{string.Join("\r\n", new KNNContext(instances).GetAllBetaValues().Select(t => $"{t.Item1.Serialize()},{t.Item2}"))}");
-            File.Move(filename, $"..\\finished\\{Path.GetFileName(filename)}");
+            File.WriteAllText($"..\\results\\{Path.GetFileNameWithoutExtension(filename)}_beta15.csv", $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,beta\r\n{string.Join("\r\n", new KNNContext(instances).GetAllBetaValues().Select(t => $"{t.Item1.Serialize()},{t.Item2}"))}");
+            //File.Move(filename, $"..\\finished\\{Path.GetFileName(filename)}");
             DateTime processEndTime = DateTime.Now;
             TimeSpan processTimeSpan = processEndTime - processStartTime;
             Console.WriteLine($"{processEndTime}\t{++finishedCount}\t{Path.GetFileNameWithoutExtension(filename)}\t\t{processTimeSpan:hh\\:mm\\:ss}\t{totalProcessTime += processTimeSpan:hh\\:mm\\:ss}\t{processEndTime - programStartTime:hh\\:mm\\:ss}");
