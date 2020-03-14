@@ -86,7 +86,7 @@ namespace MLCore.Algorithm
                 yield return (trainingInstance, GetAlphaValue(trainingInstance));
             }
         }
-
+        
         public double GetBetaValue(Instance testingInstance) => 
             GetNeighbors(testingInstance, TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue) - 1)
             .Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance))) 
