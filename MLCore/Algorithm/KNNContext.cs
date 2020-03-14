@@ -53,13 +53,9 @@ namespace MLCore.Algorithm
         /// <returns>Instances that are nearest to the testingInstance by Euclidean distance. </returns>
         private IEnumerable<Instance> GetNeighbors(Instance testingInstance, int k)
         {
-            Instance[] otherInstanceArray = new Instance[TrainingInstances.Count];
-            TrainingInstances.CopyTo(otherInstanceArray);
-            List<Instance> otherInstances = otherInstanceArray.ToList();
-            otherInstances.Remove(testingInstance);
-
             Dictionary<Instance, double> distStats = new Dictionary<Instance, double>();
-            otherInstances.ForEach(i => distStats.Add(i, EuclideanDistance(testingInstance, i)));
+            TrainingInstances.ForEach(i => distStats.Add(i, EuclideanDistance(testingInstance, i)));
+            distStats.Remove(testingInstance);
             distStats = distStats.OrderBy(kvp => kvp.Value).Take(k).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
             foreach (KeyValuePair<Instance, double> kvp in distStats)
@@ -90,8 +86,11 @@ namespace MLCore.Algorithm
                 yield return (trainingInstance, GetAlphaValue(trainingInstance));
             }
         }
-
-        public double GetBetaValue(Instance testingInstance) => GetNeighbors(testingInstance, TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue) - 1).Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance))) / TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
+        
+        public double GetBetaValue(Instance testingInstance) => 
+            GetNeighbors(testingInstance, TrainingInstances.Count(i => i.LabelValue == testingInstance.LabelValue) - 1)
+            .Where(i => i.LabelValue == testingInstance.LabelValue).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance))) 
+            / TrainingInstances.Where(i => i != testingInstance).Sum(i => 1.0 / (1.0 + EuclideanDistance(i, testingInstance)));
 
         public IEnumerable<(Instance, double)> GetAllBetaValues()
         {
@@ -99,6 +98,46 @@ namespace MLCore.Algorithm
             {
                 yield return (trainingInstance, GetBetaValue(trainingInstance));
             }
+            /*
+            Dictionary<string, int> homoCount = new Dictionary<string, int>();
+            TrainingInstances.ForEach(i =>
+            {
+                if (!homoCount.ContainsKey(i.LabelValue ?? throw new NullReferenceException("Cannot compute beta value for an unlabeled instance. ")))
+                {
+                    homoCount.Add(i.LabelValue, TrainingInstances.Count(instance => instance.LabelValue == i.LabelValue));
+                }
+            });
+
+            Dictionary<Instance, Dictionary<Instance, double>> distStats = new Dictionary<Instance, Dictionary<Instance, double>>();
+            TrainingInstances.ForEach(i => distStats.Add(i, new Dictionary<Instance, double>()));
+            TrainingInstances.ForEach(i =>
+            {
+                bool hasCheckedSelf = false;
+                TrainingInstances.ForEach(other =>
+                {
+                    if (!hasCheckedSelf)
+                    {
+                        if (other == i)
+                        {
+                            hasCheckedSelf = true;
+                        }
+                    }
+                    else
+                    {
+                        double distance = EuclideanDistance(i, other);
+                        distStats[i].Add(other, distance);
+                        distStats[other].Add(i, distance);
+                    }
+                });
+            });
+
+            foreach (Instance i in TrainingInstances)
+            {
+                double c = distStats[i].OrderBy(kvp => kvp.Value).Take(homoCount[i.LabelValue ?? throw new NullReferenceException("Cannot compute beta value for an unlabeled instance. ")] - 1).Sum(kvp => 1.0 / (1.0 + kvp.Value));
+                double d = distStats[i].Sum(kvp => 1.0 / (1.0 + kvp.Value));
+                yield return (i, c / d);
+            }
+            */
         }
     }
 }
