@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using MLCore.Algorithm;
 
 namespace MLCore
@@ -522,7 +523,7 @@ namespace MLCore
         public static int finishedCount = 0;
         public static DateTime programStartTime = DateTime.Now;
         public static TimeSpan totalProcessTime = TimeSpan.Zero;
-      
+
         public static void Main(string[] args) => Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions { MaxDegreeOfParallelism = (int)(args.Length == 0 ? 1.0 : double.Parse(args[0]) * Environment.ProcessorCount) }, filename => CalcBeta(filename));
 
         public static void CalcBeta(string filename)

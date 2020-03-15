@@ -61,7 +61,7 @@ namespace MLCore
             LabelName = headers[^1];
         }
 
-        public override string ToString() => $"Instance ({LabelName ?? "label"}: {LabelValue ?? "unlabeled"})\n {string.Join(' ', Features.Select(f => $"{f.Name}: {f.Value}{(f.ValueDiscretized is null ? "" : $" ({f.ValueDiscretized})")}"))}";
+        public override string ToString() => $"Instance ({LabelName ?? "label"}: {LabelValue ?? "unlabeled"}) {string.Join(' ', Features.Select(f => $"{f.Name}: {f.Value}{(f.ValueDiscretized is null ? "" : $" ({f.ValueDiscretized})")}"))}";
 
         public string Serialize() => $"{string.Join(',', Features.Select(f => f.Value.ToString()))},{LabelValue}";
 
