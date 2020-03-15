@@ -1,4 +1,4 @@
-﻿#define BETA_EXPR
+﻿#define DERIVED_BETA
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -535,6 +535,98 @@ namespace MLCore
             DateTime processEndTime = DateTime.Now;
             TimeSpan processTimeSpan = processEndTime - processStartTime;
             Console.WriteLine($"{processEndTime}\t{++finishedCount}\t{Path.GetFileNameWithoutExtension(filename)}\t\t{processTimeSpan:hh\\:mm\\:ss}\t{totalProcessTime += processTimeSpan:hh\\:mm\\:ss}\t{processEndTime - programStartTime:hh\\:mm\\:ss}");
+        }
+#endif
+        #endregion
+
+        #region DERIVED_BETA
+#if DERIVED_BETA
+        static bool isProgramInterrupted = false;
+        static bool isProgramFinished = false;
+        static int finishedCount = 0;
+        public static void Main(string[] args)
+        {
+            Console.CancelKeyPress += Console_CancelKeyPress;
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+            int maxDegreeOfParallelism = (int)((args.Length == 0 ? 1.0 : double.Parse(args[0])) * Environment.ProcessorCount);
+            Console.WriteLine($"Max degree of Parallelism: {maxDegreeOfParallelism}");
+            Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryGetDerivedBeta(filename));
+            isProgramFinished = true;
+        }
+
+        static void TryGetDerivedBeta(string filename)
+        {
+            if (!isProgramInterrupted)
+            {
+                try
+                {
+                    DateTime startTime = DateTime.Now;
+                    List<Instance> instances = CSV.ReadFromCsv(filename, null);
+                    filename = Path.GetFileName(filename);
+
+                    KNNContext kNNContext = new KNNContext(instances);
+                    List<Instance> kNNDerivedInstances = new List<Instance>();
+                    foreach (Instance i in instances)
+                    {
+                        Dictionary<string, double> probDist = kNNContext.GetProbDist(i);
+                        kNNDerivedInstances.Add(new Instance(
+                            new List<Feature>()
+                            {
+                                new Feature("p0", ValueType.Continuous, probDist.ContainsKey("0.0") ? probDist["0.0"] : 0.0),
+                                new Feature("p1", ValueType.Continuous, probDist.ContainsKey("1.0") ? probDist["1.0"] : 0.0)
+                            }, i.LabelValue, i.LabelName));
+                    }
+                    List<(Instance instance, double beta)> kNNBetas = new KNNContext(kNNDerivedInstances).GetAllBetaValues().ToList();
+
+                    NaiveBayesContext nbContext = new NaiveBayesContext(instances);
+                    List<Instance> nbDerivedInstances = new List<Instance>();
+                    foreach (Instance i in instances)
+                    {
+                        Dictionary<string, double> probDist = nbContext.GetProbDist(i);
+                        nbDerivedInstances.Add(new Instance(
+                            new List<Feature>()
+                            {
+                                new Feature("p0", ValueType.Continuous, probDist.ContainsKey("0.0") ? probDist["0.0"] : 0.0),
+                                new Feature("p1", ValueType.Continuous, probDist.ContainsKey("1.0") ? probDist["1.0"] : 0.0)
+                            }, i.LabelValue, i.LabelName));
+                    }
+                    List<(Instance instance, double beta)> nbBetas = new KNNContext(nbDerivedInstances).GetAllBetaValues().ToList();
+
+                    List<string> lines = new List<string>() { $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,knn-p0,knn-p1,knn-beta,nb-p0,nb-p1,nb-beta" };
+                    for (int j = 0; j < instances.Count; j++)
+                    {
+                        lines.Add($"{instances[j].Serialize()},{kNNDerivedInstances[j]["p0"].Value},{kNNDerivedInstances[j]["p1"].Value},{kNNBetas[j].beta},{nbDerivedInstances[j]["p0"].Value},{nbDerivedInstances[j]["p1"].Value},{nbBetas[j].beta}");
+                    }
+                    File.WriteAllLines($"..\\out\\{filename}", lines);
+                    File.Move($"..\\pending\\{filename}", $"..\\finished\\{filename}");
+                    Console.WriteLine($"{++finishedCount}\t{startTime}\t{DateTime.Now}\t{filename}");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                    Console.WriteLine(e.StackTrace);
+                }
+            }
+        }
+
+        static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        {
+            isProgramInterrupted = true;
+            Console.WriteLine("Cancel command received. Will stop processing new tasks. ");
+            e.Cancel = true;
+        }
+
+        static void CurrentDomain_ProcessExit(object? sender, EventArgs e)
+        {
+            if (!isProgramInterrupted)
+            {
+                isProgramInterrupted = true;
+                Console.WriteLine("Exit command received. Will stop processing new tasks. ");
+                while (!isProgramFinished)
+                {
+                    ;
+                }
+            }
         }
 #endif
         #endregion
