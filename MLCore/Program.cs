@@ -1,8 +1,12 @@
 ﻿#define DERIVED_BETA
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime;
+using System.Threading;
 using System.Threading.Tasks;
 using MLCore.Algorithm;
 
@@ -541,16 +545,24 @@ namespace MLCore
 
         #region DERIVED_BETA
 #if DERIVED_BETA
-        static bool isProgramInterrupted = false;
-        static bool isProgramFinished = false;
+        static bool isProgramInterrupted = false, isProgramFinished = false, tryStartNoGCRegion;
         static int finishedCount = 0;
+
         public static void Main(string[] args)
         {
+            AssemblyName executingAssemblyName = Assembly.GetExecutingAssembly().GetName();
+            Console.WriteLine($"{executingAssemblyName.Name} {executingAssemblyName.Version}");
+
             Console.CancelKeyPress += Console_CancelKeyPress;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-            int maxDegreeOfParallelism = (int)((args.Length == 0 ? 1.0 : double.Parse(args[0])) * Environment.ProcessorCount);
+
+            int maxDegreeOfParallelism = (int)(double.Parse(args[0]) * Environment.ProcessorCount);
             Console.WriteLine($"Max degree of Parallelism: {maxDegreeOfParallelism}");
-            Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryGetDerivedBeta(filename));
+
+            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
+            tryStartNoGCRegion = args.Length >= 2 && args[1].ToUpper() == "-NOGC";
+
+            Parallel.ForEach(Directory.EnumerateFiles("../pending"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryGetDerivedBeta(filename));
             isProgramFinished = true;
         }
 
@@ -558,6 +570,17 @@ namespace MLCore
         {
             if (!isProgramInterrupted)
             {
+                if (tryStartNoGCRegion)
+                {
+                    try
+                    {
+                        Debug.WriteLine(GC.TryStartNoGCRegion(0x0F00_0000)); // 240 MB
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine(e.Message);
+                    }
+                }
                 try
                 {
                     DateTime startTime = DateTime.Now;
@@ -565,6 +588,7 @@ namespace MLCore
                     filename = Path.GetFileName(filename);
 
                     KNNContext kNNContext = new KNNContext(instances);
+                    kNNContext.Train();
                     List<Instance> kNNDerivedInstances = new List<Instance>();
                     foreach (Instance i in instances)
                     {
@@ -579,6 +603,7 @@ namespace MLCore
                     List<(Instance instance, double beta)> kNNBetas = new KNNContext(kNNDerivedInstances).GetAllBetaValues().ToList();
 
                     NaiveBayesContext nbContext = new NaiveBayesContext(instances);
+                    nbContext.Train();
                     List<Instance> nbDerivedInstances = new List<Instance>();
                     foreach (Instance i in instances)
                     {
@@ -597,8 +622,8 @@ namespace MLCore
                     {
                         lines.Add($"{instances[j].Serialize()},{kNNDerivedInstances[j]["p0"].Value},{kNNDerivedInstances[j]["p1"].Value},{kNNBetas[j].beta},{nbDerivedInstances[j]["p0"].Value},{nbDerivedInstances[j]["p1"].Value},{nbBetas[j].beta}");
                     }
-                    File.WriteAllLines($"..\\out\\{filename}", lines);
-                    File.Move($"..\\pending\\{filename}", $"..\\finished\\{filename}");
+                    File.WriteAllLines($"../out/{filename}", lines);
+                    File.Move($"../pending/{filename}", $"../finished/{filename}");
                     Console.WriteLine($"{++finishedCount}\t{startTime}\t{DateTime.Now}\t{filename}");
                 }
                 catch (Exception e)
@@ -621,10 +646,13 @@ namespace MLCore
             if (!isProgramInterrupted)
             {
                 isProgramInterrupted = true;
-                Console.WriteLine("Exit command received. Will stop processing new tasks. ");
+                if (!isProgramFinished)
+                {
+                    Console.WriteLine("Exit command received. Will stop processing new tasks. ");
+                }
                 while (!isProgramFinished)
                 {
-                    ;
+                    Thread.Sleep(1000);
                 }
             }
         }
