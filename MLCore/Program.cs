@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using MLCore.Algorithm;
 
@@ -541,16 +543,20 @@ namespace MLCore
 
         #region DERIVED_BETA
 #if DERIVED_BETA
-        static bool isProgramInterrupted = false;
-        static bool isProgramFinished = false;
+        static bool isProgramInterrupted = false, isProgramFinished = false;
         static int finishedCount = 0;
+
         public static void Main(string[] args)
         {
+            AssemblyName executingAssemblyName = Assembly.GetExecutingAssembly().GetName();
+            Console.WriteLine($"{executingAssemblyName.Name} {executingAssemblyName.Version}");
+
             Console.CancelKeyPress += Console_CancelKeyPress;
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-            int maxDegreeOfParallelism = (int)((args.Length == 0 ? 1.0 : double.Parse(args[0])) * Environment.ProcessorCount);
-            Console.WriteLine($"Max degree of Parallelism: {maxDegreeOfParallelism}");
-            Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions() { MaxDegreeOfParallelism = maxDegreeOfParallelism }, filename => TryGetDerivedBeta(filename));
+
+            Console.WriteLine($"Max degree of Parallelism: {Environment.ProcessorCount}");
+
+            Parallel.ForEach(Directory.EnumerateFiles("../pending"), new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount }, filename => TryGetDerivedBeta(filename));
             isProgramFinished = true;
         }
 
@@ -561,49 +567,50 @@ namespace MLCore
                 try
                 {
                     DateTime startTime = DateTime.Now;
-                    List<Instance> instances = CSV.ReadFromCsv(filename, null);
+                    Table<string> table = CSV.ReadFromCsv(filename, true);
                     filename = Path.GetFileName(filename);
 
-                    KNNContext kNNContext = new KNNContext(instances);
-                    List<Instance> kNNDerivedInstances = new List<Instance>();
-                    foreach (Instance i in instances)
-                    {
-                        Dictionary<string, double> probDist = kNNContext.GetProbDist(i);
-                        kNNDerivedInstances.Add(new Instance(
-                            new List<Feature>()
-                            {
-                                new Feature("p0", ValueType.Continuous, probDist.ContainsKey("0.0") ? probDist["0.0"] : 0.0),
-                                new Feature("p1", ValueType.Continuous, probDist.ContainsKey("1.0") ? probDist["1.0"] : 0.0)
-                            }, i.LabelValue, i.LabelName));
-                    }
-                    List<(Instance instance, double beta)> kNNBetas = new KNNContext(kNNDerivedInstances).GetAllBetaValues().ToList();
+                    List<string> labels = table.SelectColumn(^22);
+                    List<double> knnp0 = table.SelectColumn(^15, s => double.Parse(s));
+                    List<double> knnp1 = table.SelectColumn(^14, s => double.Parse(s));
+                    List<double> nbp0 = table.SelectColumn(^10, s => double.Parse(s));
+                    List<double> nbp1 = table.SelectColumn(^9, s => double.Parse(s));
+                    List<double> dtp0 = table.SelectColumn(^5, s => double.Parse(s));
+                    List<double> dtp1 = table.SelectColumn(^4, s => double.Parse(s));
 
-                    NaiveBayesContext nbContext = new NaiveBayesContext(instances);
+                    List<Instance> knnDerivedInstances = new List<Instance>();
                     List<Instance> nbDerivedInstances = new List<Instance>();
-                    foreach (Instance i in instances)
-                    {
-                        Dictionary<string, double> probDist = nbContext.GetProbDist(i);
-                        nbDerivedInstances.Add(new Instance(
-                            new List<Feature>()
-                            {
-                                new Feature("p0", ValueType.Continuous, probDist.ContainsKey("0.0") ? probDist["0.0"] : 0.0),
-                                new Feature("p1", ValueType.Continuous, probDist.ContainsKey("1.0") ? probDist["1.0"] : 0.0)
-                            }, i.LabelValue, i.LabelName));
-                    }
-                    List<(Instance instance, double beta)> nbBetas = new KNNContext(nbDerivedInstances).GetAllBetaValues().ToList();
+                    List<Instance> dtDerivedInstances = new List<Instance>();
 
-                    List<string> lines = new List<string>() { $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,knn-p0,knn-p1,knn-beta,nb-p0,nb-p1,nb-beta" };
-                    for (int j = 0; j < instances.Count; j++)
+                    for (int i = 0; i < labels.Count; i++)
                     {
-                        lines.Add($"{instances[j].Serialize()},{kNNDerivedInstances[j]["p0"].Value},{kNNDerivedInstances[j]["p1"].Value},{kNNBetas[j].beta},{nbDerivedInstances[j]["p0"].Value},{nbDerivedInstances[j]["p1"].Value},{nbBetas[j].beta}");
+                        knnDerivedInstances.Add(new Instance(
+                            new List<Feature>() { new Feature("knnp0", ValueType.Continuous, knnp0[i]),
+                                new Feature("knnp1", ValueType.Continuous, knnp1[i]) }, labels[i]));
+                        nbDerivedInstances.Add(new Instance(
+                            new List<Feature>() { new Feature("nbp0", ValueType.Continuous, nbp0[i]),
+                                new Feature("nbp1", ValueType.Continuous, nbp1[i]) }, labels[i]));
+                        dtDerivedInstances.Add(new Instance(
+                            new List<Feature>() { new Feature("dtp0", ValueType.Continuous, dtp0[i]),
+                                new Feature("dtp1", ValueType.Continuous, dtp1[i]) }, labels[i]));
                     }
-                    File.WriteAllLines($"..\\out\\{filename}", lines);
-                    File.Move($"..\\pending\\{filename}", $"..\\finished\\{filename}");
+
+                    List<(Instance _, double beta)> knnDerivedBetas = new KNNContext(knnDerivedInstances).GetAllBetaValues().ToList();
+                    List<(Instance _, double beta)> nbDerivedBetas = new KNNContext(nbDerivedInstances).GetAllBetaValues().ToList();
+                    List<(Instance _, double beta)> dtDerivedBetas = new KNNContext(dtDerivedInstances).GetAllBetaValues().ToList();
+
+                    List<string> lines = new List<string>() { "label,knnallrew-beta,nbpkid-beta,dtc44-beta" };
+                    for (int i = 0; i < labels.Count; i++)
+                    {
+                        lines.Add(string.Join(',', labels[i], knnDerivedBetas[i].beta, nbDerivedBetas[i].beta, dtDerivedBetas[i].beta));
+                    }
+                    File.WriteAllLines($"../out/{filename}", lines);
+                    File.Move($"../pending/{filename}", $"../finished/{filename}");
                     Console.WriteLine($"{++finishedCount}\t{startTime}\t{DateTime.Now}\t{filename}");
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.Message);
+                    Console.WriteLine($"{filename}: {e.Message}");
                     Console.WriteLine(e.StackTrace);
                 }
             }
@@ -621,10 +628,13 @@ namespace MLCore
             if (!isProgramInterrupted)
             {
                 isProgramInterrupted = true;
-                Console.WriteLine("Exit command received. Will stop processing new tasks. ");
+                if (!isProgramFinished)
+                {
+                    Console.WriteLine("Exit command received. Will stop processing new tasks. ");
+                }
                 while (!isProgramFinished)
                 {
-                    ;
+                    Thread.Sleep(1000);
                 }
             }
         }

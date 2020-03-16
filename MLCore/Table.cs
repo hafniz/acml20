@@ -17,6 +17,7 @@ namespace MLCore
         public Table(List<List<T>> source) => data = source;
 
         public List<T> this[Index rowIndex] => data[rowIndex];
+        public List<TResult> SelectRow<TResult>(Index rowIndex, Converter<T, TResult> converter) => this[rowIndex].ConvertAll(converter);
         public Table<T> SelectRows(params Index[] rowIndices)
         {
             List<List<T>> data = new List<List<T>>();
@@ -31,6 +32,7 @@ namespace MLCore
             data.ForEach(r => column.Add(r[columnIndex]));
             return column;
         }
+        public List<TResult> SelectColumn<TResult>(Index columnIndex, Converter<T, TResult> converter) => SelectColumn(columnIndex).ConvertAll(converter);
         public Table<T> SelectColumns(params Index[] columnIndices)
         {
             List<List<T>> data = new List<List<T>>();
