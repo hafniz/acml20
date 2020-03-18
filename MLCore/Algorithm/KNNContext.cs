@@ -102,35 +102,24 @@ namespace MLCore.Algorithm
                 }
             });
 
-            Dictionary<Instance, Dictionary<Instance, double>> distStats = new Dictionary<Instance, Dictionary<Instance, double>>();
-            TrainingInstances.ForEach(i => distStats.Add(i, new Dictionary<Instance, double>()));
-            TrainingInstances.ForEach(i =>
+            double[,] distStats = new double[TrainingInstances.Count, TrainingInstances.Count];
+            for (int i = 1; i < TrainingInstances.Count; i++)
             {
-                bool hasCheckedSelf = false;
-                TrainingInstances.ForEach(other =>
+                for (int j = 0; j < i; j++)
                 {
-                    if (!hasCheckedSelf)
-                    {
-                        if (other == i)
-                        {
-                            hasCheckedSelf = true;
-                        }
-                    }
-                    else
-                    {
-                        double distance = EuclideanDistance(i, other);
-                        distStats[i].Add(other, distance);
-                        distStats[other].Add(i, distance);
-                    }
-                });
-            });
+                    distStats[i, j] = distStats[j, i] = EuclideanDistance(TrainingInstances[i], TrainingInstances[j]);
+                }
+            }
 
-            foreach (KeyValuePair<Instance, Dictionary<Instance, double>> instanceDistInfo in distStats)
+            for (int i = 0; i < TrainingInstances.Count; i++)
             {
-                yield return (instanceDistInfo.Key,
-                    instanceDistInfo.Value.OrderBy(kvp => kvp.Value).Take(homoCount[instanceDistInfo.Key.LabelValue ?? throw new NullReferenceException("Cannot compute beta value for an unlabeled instance. ")] - 1)
-                    .Where(kvp => kvp.Key.LabelValue == instanceDistInfo.Key.LabelValue).Sum(kvp => 1.0 / (1.0 + kvp.Value))
-                    / instanceDistInfo.Value.Sum(kvp => 1.0 / (1.0 + kvp.Value)));
+                Instance currInstance = TrainingInstances[i];
+                Dictionary<Instance, double> distToOtherInstances = new Dictionary<Instance, double>(Enumerable.Range(0, TrainingInstances.Count).Select(j => new KeyValuePair<Instance, double>(TrainingInstances[j], distStats[i, j])));
+                distToOtherInstances.Remove(TrainingInstances[i]);
+                yield return (currInstance,
+                    distToOtherInstances.OrderBy(kvp => kvp.Value).Take(homoCount[currInstance.LabelValue ?? throw new NullReferenceException("Cannot compute beta value for an unlabeled instance. ")] - 1)
+                    .Where(kvp => kvp.Key.LabelValue == currInstance.LabelValue).Sum(kvp => 1.0 / (1.0 + kvp.Value))
+                    / distToOtherInstances.Sum(kvp => 1.0 / (1.0 + kvp.Value)));
             }
         }
     }
