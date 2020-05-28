@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <StartupObject>MLCore.Program</StartupObject>
     <ApplicationIcon>TextTemplate.ico</ApplicationIcon>
-    <Version>1.15.5.102</Version>
+    <Version>1.15.6.127</Version>
   </PropertyGroup>
     
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

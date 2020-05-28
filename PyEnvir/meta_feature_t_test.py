@@ -1,3 +1,4 @@
+import os
 from scipy import stats 
 
 def paired_t_test(accuracies1, accuracies2): 
@@ -20,7 +21,7 @@ def paired_t_test(accuracies1, accuracies2):
     return label, t_test[0], t_test[1]
 
 values = []
-with open("C:\\Users\\CHENH\\Desktop\\UCI analysis\\accy\\6.csv") as file:
+with open(f"{os.path.expanduser('~\\Desktop')}\\UCI analysis\\accy\\6.csv") as file:
     values = [[float(value) for value in row.split(',')] for row in list(file)]
 
 print("left(1)/draw(0)/right(2),t-statistic,p-value")

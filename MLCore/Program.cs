@@ -1,13 +1,8 @@
-﻿#define DERIVED_BETA
+﻿#define BETA_ANALYSIS
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
-using MLCore.Algorithm;
 
 namespace MLCore
 {
@@ -638,6 +633,48 @@ namespace MLCore
                     Thread.Sleep(1000);
                 }
             }
+        }
+#endif
+        #endregion
+
+        #region BETA_ANALYSIS
+#if BETA_ANALYSIS
+        public static void Main()
+        {
+            int finishedCount = 0;
+            Directory.SetCurrentDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "ML\\beta work"));
+            List<string> lines = new List<string>() { "filename,base_beta-bin0,base_beta-bin1,base_beta-bin2,base_beta-bin3,base_beta-bin4,knn_beta-bin0,knn_beta-bin1,knn_beta-bin2,knn_beta-bin3,knn_beta-bin4,nb_beta-bin0,nb_beta-bin1,nb_beta-bin2,nb_beta-bin3,nb_beta-bin4,dt_beta-bin0,dt_beta-bin1,dt_beta-bin2,dt_beta-bin3,dt_beta-bin4" };
+            foreach (string filename in Directory.EnumerateFiles(".\\a270 original dt beta").Select(s => Path.GetFileNameWithoutExtension(s)))
+            {
+                List<decimal> baseB = new List<decimal>();
+                CSV.ReadFromCsv($".\\a270 original base beta\\{filename}_beta1.csv", true).SelectColumn(^1).ForEach(s => { if (s != "NaN") baseB.Add(decimal.Parse(s)); });
+                decimal instancesCount = baseB.Count;
+
+                Table<string> knnAndNbBetas = CSV.ReadFromCsv($".\\a270 original knn and nb beta\\{filename}.csv", true);
+                List<decimal> knnB = new List<decimal>();
+                List<decimal> nbB = new List<decimal>();
+                Table<string> dtBetas = CSV.ReadFromCsv($".\\a270 original dt beta\\{filename}.csv", true);
+                List<decimal> dtB = new List<decimal>();
+
+                knnAndNbBetas.SelectColumn(^4).ForEach(s => { if (s != "NaN") knnB.Add(decimal.Parse(s)); });
+                knnAndNbBetas.SelectColumn(^1).ForEach(s => { if (s != "NaN") nbB.Add(decimal.Parse(s)); });
+                dtBetas.SelectColumn(^1).ForEach(s => { if (s != "NaN") dtB.Add(decimal.Parse(s)); });
+
+                decimal[] binFreqs = new decimal[20];
+                for (int i = 0; i < 5; i++)
+                {
+                    decimal lowerBound = i / 5.0M;
+                    decimal upperBound = i == 4 ? 1.01M : (i + 1) / 5.0M;
+                    binFreqs[i] = baseB.Count(d => d >= lowerBound && d < upperBound) / instancesCount;
+                    binFreqs[i + 5] = knnB.Count(d => d >= lowerBound && d < upperBound) / instancesCount;
+                    binFreqs[i + 10] = nbB.Count(d => d >= lowerBound && d < upperBound) / instancesCount;
+                    binFreqs[i + 15] = dtB.Count(d => d >= lowerBound && d < upperBound) / instancesCount;
+                }
+
+                lines.Add($"{Path.GetFileNameWithoutExtension(filename)},{string.Join(',', binFreqs)}");
+                Console.WriteLine(++finishedCount);
+            }
+            File.WriteAllLines(".\\a270-beta-5binFreqs.csv", lines);
         }
 #endif
         #endregion

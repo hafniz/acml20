@@ -11,6 +11,7 @@
     <OutputPath>.</OutputPath>
     <Name>PyEnvir</Name>
     <RootNamespace>PyEnvir</RootNamespace>
+    <TestFramework>unittest</TestFramework>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
