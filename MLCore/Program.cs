@@ -1,4 +1,4 @@
-﻿#define BETA_ANALYSIS
+﻿#define BETA_TO_BINFREQ
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -519,20 +519,44 @@ namespace MLCore
         #region BETA_EXPR
 #if BETA_EXPR
         public static int finishedCount = 0;
-        public static DateTime programStartTime = DateTime.Now;
-        public static TimeSpan totalProcessTime = TimeSpan.Zero;
 
-        public static void Main(string[] args) => Parallel.ForEach(Directory.EnumerateFiles("..\\pending"), new ParallelOptions { MaxDegreeOfParallelism = (int)(args.Length == 0 ? 1.0 : double.Parse(args[0]) * Environment.ProcessorCount) }, filename => CalcBeta(filename));
+        public static void Main(string[] args) => Parallel.ForEach(
+            Directory.EnumerateFiles(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "source\\repos\\MachineLearning\\Dataset\\B739\\B739-raw")),
+            new ParallelOptions { MaxDegreeOfParallelism = (int)(args.Length == 0 ? 1.0 : double.Parse(args[0]) * Environment.ProcessorCount) },
+            filename => CalcBeta(filename));
 
         public static void CalcBeta(string filename)
         {
-            DateTime processStartTime = DateTime.Now;
             List<Instance> instances = CSV.ReadFromCsv(filename, null);
-            File.WriteAllText($"..\\results\\{Path.GetFileNameWithoutExtension(filename)}_beta151.csv", $"{string.Join(',', instances.First().Features.Select(f => f.Name))},label,beta\r\n{string.Join("\r\n", new KNNContext(instances).GetAllBetaValues().Select(t => $"{t.Item1.Serialize()},{t.Item2}"))}");
-            //File.Move(filename, $"..\\finished\\{Path.GetFileName(filename)}");
-            DateTime processEndTime = DateTime.Now;
-            TimeSpan processTimeSpan = processEndTime - processStartTime;
-            Console.WriteLine($"{processEndTime}\t{++finishedCount}\t{Path.GetFileNameWithoutExtension(filename)}\t\t{processTimeSpan:hh\\:mm\\:ss}\t{totalProcessTime += processTimeSpan:hh\\:mm\\:ss}\t{processEndTime - programStartTime:hh\\:mm\\:ss}");
+            List<string> outputLines = new List<string>() { "feature0,feature1,label,beta" };
+            foreach ((Instance i, double b) in new KNNContext(instances).GetAllBetaValues())
+            {
+                outputLines.Add($"{i.Serialize()},{b}");
+            }
+            File.WriteAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), $"source\\repos\\MachineLearning\\Dataset\\B739\\B739-beta\\{Path.GetFileName(filename)}"), outputLines);
+            Console.WriteLine($"{++finishedCount}\t{filename}");
+        }
+#endif
+        #endregion
+
+        #region BETA_TO_BINFREQ
+#if BETA_TO_BINFREQ
+        public static void Main()
+        {
+            List<string> lines = new List<string>() { "datasetName,beta-bin0,beta-bin1,beta-bin2,beta-bin3,beta-bin4,beta-bin5,beta-bin6,beta-bin7,beta-bin8,beta-bin9" };
+            foreach (string filename in Directory.EnumerateFiles(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "source\\repos\\MachineLearning\\Dataset\\B739\\B739-beta")))
+            {
+                int[] binFreqs = new int[10];
+                int rowCount = 0;
+                foreach (string row in File.ReadAllLines(filename)[1..])
+                {
+                    decimal beta = decimal.Parse(row.Split(',')[^1]);
+                    ++rowCount;
+                    ++binFreqs[beta >= 1 ? 9 : (int)(beta * 10)];
+                }
+                lines.Add($"{Path.GetFileNameWithoutExtension(filename)},{string.Join(',', binFreqs.Select(i => i / (decimal)rowCount))}");
+            }
+            File.WriteAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "source\\repos\\MachineLearning\\Dataset\\B739\\B739-betaBinFreqs.csv"), lines);
         }
 #endif
         #endregion
