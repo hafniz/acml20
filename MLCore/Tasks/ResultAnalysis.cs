@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
+using System.Text;
 
-namespace MLCore
+namespace MLCore.Tasks
 {
     public enum MetaFeatureSet
     {
@@ -46,13 +48,130 @@ namespace MLCore
 
     public static class ResultAnalysis
     {
-        static void Main()
+        public static void Main()
         {
-            List<ResultEntry> uciEntries = File.ReadAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop\\ML\\202005\\predicted-labels-uci.csv"))[1..].Select(row => new ResultEntry(row)).ToList();
-            List<ResultEntry> artificialEntries = File.ReadAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop\\ML\\202005\\predicted-labels-artificial.csv"))[1..].Select(row => new ResultEntry(row)).ToList();
-            MetaFeatureSet[] metaFeatureSets = (MetaFeatureSet[])Enum.GetValues(typeof(MetaFeatureSet));
+            //List<ResultEntry> uciEntries = File.ReadAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop\\ML\\202005\\predicted-labels-uci.csv"))[1..].Select(row => new ResultEntry(row)).ToList();
+            //List<ResultEntry> artificialEntries = File.ReadAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop\\ML\\202005\\predicted-labels-artificial.csv"))[1..].Select(row => new ResultEntry(row)).ToList();
 
 
+        }
+
+        private static void CategorizeEntriesInConfusionMatrix(List<ResultEntry> entries, string avgAccuracyFilename, string outputFilename, MetaFeatureSet model)
+        {
+            Dictionary<string, string> avgAccuracies = new Dictionary<string, string>();
+            foreach (string row in File.ReadAllLines(avgAccuracyFilename)[1..])
+            {
+                avgAccuracies.Add(row.Split(',')[0], row);
+            }
+
+            List<string> outputLines = new List<string>() { "datasetName,knnallrew,nbpkid,dtc44,correct.Freq,partial.Freq,incorrect.Freq,category" };
+            foreach (string datasetName in entries.Select(e => e.DatasetName).Distinct())
+            {
+                StringBuilder lineBuilder = new StringBuilder(avgAccuracies[datasetName]);
+                int[] catFreqs = new int[3]; // [0]: correct, [1]: partial, [2]: incorrect
+                foreach (ResultEntry entry in entries.Where(e => e.DatasetName == datasetName && e.MetaFeatureSet == model))
+                {
+                    switch (entry.Correctness)
+                    {
+                        case Correctness.Correct:
+                            ++catFreqs[0];
+                            break;
+                        case Correctness.Partial:
+                            ++catFreqs[1];
+                            break;
+                        case Correctness.Incorrect:
+                            ++catFreqs[2];
+                            break;
+                    }
+                }
+                lineBuilder.Append(',' + string.Join(',', catFreqs));
+                if (catFreqs[0] > catFreqs[1] && catFreqs[0] > catFreqs[2])
+                {
+                    lineBuilder.Append($",C");
+                }
+                else if (catFreqs[1] > catFreqs[0] && catFreqs[1] > catFreqs[2])
+                {
+                    lineBuilder.Append($",P");
+                }
+                else if (catFreqs[2] > catFreqs[0] && catFreqs[2] > catFreqs[1])
+                {
+                    lineBuilder.Append($",I");
+                }
+                else
+                {
+                    lineBuilder.Append($",?");
+                }
+                outputLines.Add(lineBuilder.ToString());
+            }
+            File.WriteAllLines(outputFilename, outputLines);
+        }
+
+        private static void CategorizeEntriesInComparionMatrix(List<ResultEntry> entries, string avgAccuracyFilename, string outputFilename, MetaFeatureSet rowModel, MetaFeatureSet columnModel)
+        {
+            Dictionary<string, string> avgAccuracies = new Dictionary<string, string>();
+            foreach (string row in File.ReadAllLines(avgAccuracyFilename)[1..])
+            {
+                avgAccuracies.Add(row.Split(',')[0], row);
+            }
+
+            List<string> outputLines = new List<string>() { "datasetName,knnallrew,nbpkid,dtc44,draw.Freq,rowModelBetter.Freq,columnModelBetter.Freq,category" };
+            foreach (string datasetName in entries.Select(e => e.DatasetName).Distinct())
+            {
+                StringBuilder lineBuilder = new StringBuilder(avgAccuracies[datasetName]);
+                int[] catFreqs = new int[3]; // [0]: draw, [1]: rowModelBetter, [2]: columnModelBetter
+                List<ResultEntry> datasetEntries = entries.Where(e => e.DatasetName == datasetName).ToList();
+                for (int cvNumber = 0; cvNumber < 10; cvNumber++)
+                {
+                    Correctness rowCorrectness = datasetEntries.Single(e => e.CvNumber == cvNumber && e.MetaFeatureSet == rowModel).Correctness;
+                    Correctness columnCorrectness = datasetEntries.Single(e => e.CvNumber == cvNumber && e.MetaFeatureSet == columnModel).Correctness;
+                    if (rowCorrectness == columnCorrectness)
+                    {
+                        ++catFreqs[0];
+                    }
+                    else if (rowCorrectness == Correctness.Correct || rowCorrectness == Correctness.Partial && columnCorrectness == Correctness.Incorrect)
+                    {
+                        ++catFreqs[1];
+                    }
+                    else
+                    {
+                        ++catFreqs[2];
+                    }
+                }
+                lineBuilder.Append(',' + string.Join(',', catFreqs));
+                if (catFreqs[0] > catFreqs[1] && catFreqs[0] > catFreqs[2])
+                {
+                    lineBuilder.Append($",D");
+                }
+                else if (catFreqs[1] > catFreqs[0] && catFreqs[1] > catFreqs[2])
+                {
+                    lineBuilder.Append($",R");
+                }
+                else if (catFreqs[2] > catFreqs[0] && catFreqs[2] > catFreqs[1])
+                {
+                    lineBuilder.Append($",C");
+                }
+                else
+                {
+                    lineBuilder.Append($",?");
+                }
+                outputLines.Add(lineBuilder.ToString());
+            }
+            File.WriteAllLines(outputFilename, outputLines);
+        }
+
+        private static void AverageAccuracy(string sourceFilename, string outputFilename)
+        {
+            List<string> outputLines = new List<string>() { "datasetName,knnallrew,nbpkid,dtc44" };
+            foreach (string row in File.ReadAllLines(sourceFilename)[1..])
+            {
+                string[] fields = row.Split(',');
+                string datasetName = fields[0];
+                decimal knnallrew = fields[1..11].Average(s => decimal.Parse(s));
+                decimal nbpkid = fields[11..21].Average(s => decimal.Parse(s));
+                decimal dtc44 = fields[21..].Average(s => decimal.Parse(s));
+                outputLines.Add($"{datasetName},{knnallrew},{nbpkid},{dtc44}");
+            }
+            File.WriteAllLines(outputFilename, outputLines);
         }
 
         private static void ModelConfusionMatrix(List<ResultEntry> entries, string datasetGroup, MetaFeatureSet model)
@@ -131,7 +250,7 @@ namespace MLCore
                 Console.WriteLine(line);
                 lines.Add(line);
             }
-            File.WriteAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), $"Desktop\\ML\\202005\\ModelComparisonMatrices\\{datasetGroup}-{rowModel}-{columnModel}.csv"), lines);
+            File.WriteAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), $"Desktop\\ML\\202005\\{datasetGroup}-{rowModel}-{columnModel}.csv"), lines);
         }
 
         private static void ConsolidateData()
@@ -148,7 +267,7 @@ namespace MLCore
             };
 
             List<ResultEntry> entries = new List<ResultEntry>();
-            foreach (string filename in Directory.EnumerateFiles(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop\\ML\\202005\\predicted_labels_artificial")))
+            foreach (string filename in Directory.EnumerateFiles(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop\\ML\\202005\\predicted_labels")))
             {
                 string basename = Path.GetFileNameWithoutExtension(filename);
                 MetaFeatureSet metaFeatureSet = (MetaFeatureSet)byte.Parse(basename[0].ToString());
