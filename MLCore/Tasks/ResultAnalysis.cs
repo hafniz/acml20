@@ -50,7 +50,7 @@ namespace MLCore.Tasks
         public static decimal GetModelImprovementScore(IEnumerable<ResultEntry> entries, MetaFeatureSet thisModel, MetaFeatureSet otherModel, params byte[] excludeLabels)
         {
             int cvNumberCount = entries.Select(e => e.CvNumber).Distinct().Count();
-            List<string> datasetNames = excludeLabels is null ? entries.Select(e => e.DatasetName).Distinct().ToList() : entries.Where(e => !excludeLabels.Contains(e.ActualLabel)).Select(e => e.DatasetName).Distinct().ToList();
+            List<string> datasetNames = entries.Where(e => !excludeLabels.Contains(e.ActualLabel)).Select(e => e.DatasetName).Distinct().ToList();
             decimal[] scores = new decimal[cvNumberCount];
             Dictionary<string, ResultEntry>[] thisModelEntries = new Dictionary<string, ResultEntry>[cvNumberCount];
             Dictionary<string, ResultEntry>[] otherModelEntries = new Dictionary<string, ResultEntry>[cvNumberCount];
@@ -61,7 +61,7 @@ namespace MLCore.Tasks
             }
             foreach (ResultEntry entry in entries)
             {
-                if (excludeLabels != null && excludeLabels.Contains(entry.ActualLabel))
+                if (excludeLabels.Contains(entry.ActualLabel))
                 {
                     continue;
                 }
