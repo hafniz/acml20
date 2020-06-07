@@ -72,8 +72,12 @@ namespace MLCore
             return newInstance;
         }
 
-        public bool Equals(Instance other)
+        public bool Equals(Instance? other)
         {
+            if (other is null)
+            {
+                return this is null;
+            }
             if (other.LabelValue != LabelValue)
             {
                 return false;

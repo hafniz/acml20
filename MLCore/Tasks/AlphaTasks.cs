@@ -1,5 +1,8 @@
 ﻿namespace MLCore.Tasks
 {
+    /// <summary>
+    /// Archived from Program.cs
+    /// </summary>
     public static class AlphaTasks
     {
         #region OALPHA_BINFREQ
