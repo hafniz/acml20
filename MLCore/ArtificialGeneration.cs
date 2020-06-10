@@ -11,6 +11,102 @@ namespace MLCore
     public static class ArtificialGeneration
     {
         /// <summary>
+        /// Randomly sample base-level datasets according to a given class (meta-label) composition to form meta-datasets. 
+        /// </summary>
+        /// <param name="datasetNameSource">The filename of the CSV file containing the name and the meta-label of each dataset. Expected header: name,label. </param>
+        /// <param name="configFilename">The filename of the CSV file containing the name and class (meta-label) composition of each meta-dataset. Expected header: name,label0,label1,label2,... </param>
+        /// <param name="outputFilename">The path that the output writes to. In each row, the first field is the name of the meta-dataset, and the subsequent fields are the name of base-level datasets included. </param>
+        public static void SampleDatasetsFromConfig(string datasetNameSource, string configFilename, string outputFilename)
+        {
+            List<string>[] datasetNamesByLabel = new List<string>[7];
+            for (int i = 0; i < 7; i++)
+            {
+                datasetNamesByLabel[i] = new List<string>();
+            }
+            foreach (string line in File.ReadAllLines(datasetNameSource)[1..])
+            {
+                string[] fields = line.Split(',');
+                datasetNamesByLabel[int.Parse(fields[1])].Add(fields[0]);
+            }
+
+            List<string> output = new List<string>() { "MSetName,datasetNames[]" };
+            foreach (string line in File.ReadAllLines(configFilename)[1..])
+            {
+                string[] fields = line.Split(',');
+                List<string> selected = new List<string>();
+                for (int label = 0; label < 7; label++)
+                {
+                    List<string> pool = new List<string>(datasetNamesByLabel[label]);
+                    Random random = new Random();
+                    for (int _ = 0; _ < int.Parse(fields[label + 1]); _++)
+                    {
+                        int index = random.Next(pool.Count);
+                        selected.Add(pool[index]);
+                        pool.RemoveAt(index);
+                    }
+                }
+                output.Add($"{fields[0]},{string.Join(',', selected)}");
+            }
+            File.WriteAllLines(outputFilename, output);
+        }
+
+        /// <summary>
+        /// Randomly generate class (meta-label) composition that gives the formed meta-datasets a variety of imbalance ratio (C2). Change the code accordingly to alter the parameters. 
+        /// </summary>
+        /// <param name="outputFilename">The path that the output writes to. In each row, the first field is the name of the meta-dataset, and the subsequent fields are the number of base-level datasets included for each meta-label. The last field is the imbalance ratio (C2) of the meta-dataset. </param>
+        public static void SampleRandomConfig(string outputFilename)
+        {
+            Dictionary<int[], string> selected = new Dictionary<int[], string> { { Array.Empty<int>(), "MSetName,label0,label1,label2,label3,label4,label5,label6,C2" } };
+            List<string> generated = new List<string>() { "total,C2" };
+            int[] quota = Enumerable.Repeat(25, 8).ToArray();
+            int selectedCount = 0;
+            int generatedCount = 0;
+
+            while (selectedCount < 200)
+            {
+                int[] config = GetRandomConfig(out int total, out decimal C2);
+                ++generatedCount;
+                generated.Add($"{total},{C2}");
+                if (total >= 100)
+                {
+                    Index interval = (int)(C2 * 10);
+                    if (quota[interval] > 0)
+                    {
+                        try
+                        {
+                            selected.Add(config, $"b739-rvar{++selectedCount},{string.Join(',', config)},{C2}");
+                            --quota[interval];
+                            Console.WriteLine($"Selected {selectedCount}/{generatedCount}. ");
+                        }
+                        catch (ArgumentException)
+                        {
+                            Console.WriteLine("Duplicate config captured. ");
+                        }
+                    }
+                }
+            }
+            File.WriteAllLines(outputFilename, selected.Select(kvp => kvp.Value));
+
+            static int[] GetRandomConfig(out int total, out decimal C2)
+            {
+                Random random = new Random();
+                int[] counts = new[] { random.Next(29), random.Next(10, 174), random.Next(10, 158), random.Next(10, 167), random.Next(11), random.Next(105), random.Next(35) };
+
+                total = counts.Sum();
+                int classCount = counts.Count(i => i > 0);
+                decimal beforeSum = (classCount - 1) / (decimal)classCount;
+                decimal sum = 0;
+                foreach (int i in counts.Where(i => i > 0))
+                {
+                    sum += (decimal)i / (total - i);
+                }
+                decimal IR = beforeSum * sum;
+                C2 = 1.0M - 1.0M / IR;
+                return counts;
+            }
+        }
+
+        /// <summary>
         /// Archived from Program.cs, region A270_RESAMPLE. Resamples 90% of the instances for dataset in Dataset\\A270 and write a new dataset.
         /// </summary>
         public static void ResampleA270()

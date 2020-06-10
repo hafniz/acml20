@@ -47,7 +47,102 @@ namespace MLCore.Tasks
 
     public static class ResultAnalysis
     {
-        public static decimal GetModelImprovementScore(IEnumerable<ResultEntry> entries, MetaFeatureSet thisModel, MetaFeatureSet otherModel, params byte[] excludeLabels)
+        /// <summary>
+        /// Compare <see cref="MetaFeatureSet.Beta"/> and <see cref="MetaFeatureSet.Conventional"/> based on weighted accuracy values and other parameters. 
+        /// </summary>
+        /// <param name="resultEntriesPath">The folder path of result entries. Each file in this path should be the prediction made by the models over one meta-dataset. </param>
+        /// <param name="outputFilename">The path that the output writes to. In each row, the first field is the name of the meta-dataset, and the subsequent fields are the accuracy values of different models based on different parameters. </param>
+        public static void CompareModelBasedOnWeightedAccuracy(string resultEntriesPath, string outputFilename)
+        {
+            List<string> lines = new List<string>() { "name,PAsC-all-beta,PAsC-all-conv,PasC-123-beta,PasC-123-conv,PAsI-all-beta,PAsI-all-conv,PasI-123-beta,PasI-123-conv" };
+            foreach (string filename in Directory.EnumerateFiles(resultEntriesPath))
+            {
+                StringBuilder sb = new StringBuilder(Path.GetFileNameWithoutExtension(filename).Split('-')[^1]);
+                List<ResultEntry> entries = File.ReadAllLines(filename)[1..].Select(s => new ResultEntry(s)).ToList();
+
+                Dictionary<byte, decimal> weight123 = new Dictionary<byte, decimal>()
+                {
+                    { 1, 1.0M / 3.0M },
+                    { 2, 1.0M / 3.0M },
+                    { 3, 1.0M / 3.0M },
+                };
+                List<ResultEntry> betaEntries = entries.Where(e => e.MetaFeatureSet == MetaFeatureSet.Beta).ToList();
+                List<ResultEntry> convEntries = entries.Where(e => e.MetaFeatureSet == MetaFeatureSet.Conventional).ToList();
+
+                foreach (Correctness partialAs in new Correctness[] { Correctness.Correct, Correctness.Incorrect })
+                {
+                    foreach (Dictionary<byte, decimal>? weightage in new Dictionary<byte, decimal>?[] { null, weight123 })
+                    {
+                        foreach (List<ResultEntry> modelEntries in new List<ResultEntry>[] { betaEntries, convEntries })
+                        {
+                            sb.Append(',');
+                            sb.Append(WeightedAccuracyByClass(modelEntries, weightage, partialAs));
+                        }
+                    }
+                }
+                lines.Add(sb.ToString());
+            }
+            File.WriteAllLines(outputFilename, lines);
+        }
+
+        public static decimal WeightedAccuracyByClass(List<ResultEntry> entries, Dictionary<byte, decimal>? weightages = null, Correctness treatPartialAs = Correctness.Partial)
+        {
+            if (weightages != null)
+            {
+                decimal weightageSum = weightages.Sum(kvp => kvp.Value);
+                if (Math.Abs(weightageSum - 1) > 1E-5M)
+                {
+                    throw new ArgumentException($"Summation of weightages ({weightageSum}) does not equal to 1. ", nameof(weightages));
+                }
+            }
+
+            Dictionary<byte, int> entryCountByLabel = new Dictionary<byte, int>();
+            Dictionary<byte, decimal> correctCountByLabel = new Dictionary<byte, decimal>();
+
+            List<byte> labels = entries.Select(e => e.ActualLabel).Distinct().OrderBy(b => b).ToList();
+            foreach (byte label in labels)
+            {
+                entryCountByLabel.Add(label, 0);
+                correctCountByLabel.Add(label, 0);
+            }
+
+            decimal scoreForPartial = treatPartialAs switch
+            {
+                Correctness.Correct => 1,
+                Correctness.Partial => 0.5M,
+                _ => 0
+            };
+
+            foreach (ResultEntry entry in entries)
+            {
+                ++entryCountByLabel[entry.ActualLabel];
+                correctCountByLabel[entry.ActualLabel] += entry.Correctness switch
+                {
+                    Correctness.Correct => 1,
+                    Correctness.Partial => scoreForPartial,
+                    _ => 0
+                };
+            }
+
+            decimal sum = 0;
+            if (weightages is null)
+            {
+                foreach (byte label in labels)
+                {
+                    sum += 1.0M / labels.Count * correctCountByLabel[label] / entryCountByLabel[label];
+                }
+            }
+            else
+            {
+                foreach (byte label in labels)
+                {
+                    sum += weightages.ContainsKey(label) ? weightages[label] * correctCountByLabel[label] / entryCountByLabel[label] : 0;
+                }
+            }
+            return sum;
+        }
+
+        public static decimal ModelImprovementScore(IEnumerable<ResultEntry> entries, MetaFeatureSet thisModel, MetaFeatureSet otherModel, params byte[] excludeLabels)
         {
             int cvNumberCount = entries.Select(e => e.CvNumber).Distinct().Count();
             List<string> datasetNames = entries.Where(e => !excludeLabels.Contains(e.ActualLabel)).Select(e => e.DatasetName).Distinct().ToList();
