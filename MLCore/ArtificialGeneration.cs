@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MLCore.Algorithm;
+using MLCore.Tasks;
 
 namespace MLCore
 {
@@ -91,17 +92,8 @@ namespace MLCore
             {
                 Random random = new Random();
                 int[] counts = new[] { random.Next(29), random.Next(10, 174), random.Next(10, 158), random.Next(10, 167), random.Next(11), random.Next(105), random.Next(35) };
-
                 total = counts.Sum();
-                int classCount = counts.Count(i => i > 0);
-                decimal beforeSum = (classCount - 1) / (decimal)classCount;
-                decimal sum = 0;
-                foreach (int i in counts.Where(i => i > 0))
-                {
-                    sum += (decimal)i / (total - i);
-                }
-                decimal IR = beforeSum * sum;
-                C2 = 1.0M - 1.0M / IR;
+                C2 = ResultAnalysis.C2(counts);
                 return counts;
             }
         }

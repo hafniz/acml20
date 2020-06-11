@@ -57,7 +57,7 @@ namespace MLCore.Tasks
             List<string> lines = new List<string>() { "name,PAsC-all-beta,PAsC-all-conv,PasC-123-beta,PasC-123-conv,PAsI-all-beta,PAsI-all-conv,PasI-123-beta,PasI-123-conv" };
             foreach (string filename in Directory.EnumerateFiles(resultEntriesPath))
             {
-                StringBuilder sb = new StringBuilder(Path.GetFileNameWithoutExtension(filename).Split('-')[^1]);
+                StringBuilder sb = new StringBuilder(Path.GetFileNameWithoutExtension(filename));
                 List<ResultEntry> entries = File.ReadAllLines(filename)[1..].Select(s => new ResultEntry(s)).ToList();
 
                 Dictionary<byte, decimal> weight123 = new Dictionary<byte, decimal>()
@@ -76,7 +76,7 @@ namespace MLCore.Tasks
                         foreach (List<ResultEntry> modelEntries in new List<ResultEntry>[] { betaEntries, convEntries })
                         {
                             sb.Append(',');
-                            sb.Append(WeightedAccuracyByClass(modelEntries, weightage, partialAs));
+                            sb.Append(WeightedAccuracy(modelEntries, weightage, partialAs));
                         }
                     }
                 }
@@ -85,7 +85,7 @@ namespace MLCore.Tasks
             File.WriteAllLines(outputFilename, lines);
         }
 
-        public static decimal WeightedAccuracyByClass(List<ResultEntry> entries, Dictionary<byte, decimal>? weightages = null, Correctness treatPartialAs = Correctness.Partial)
+        public static decimal WeightedAccuracy(List<ResultEntry> entries, Dictionary<byte, decimal>? weightages = null, Correctness treatPartialAs = Correctness.Partial)
         {
             if (weightages != null)
             {
@@ -129,8 +129,9 @@ namespace MLCore.Tasks
             {
                 foreach (byte label in labels)
                 {
-                    sum += 1.0M / labels.Count * correctCountByLabel[label] / entryCountByLabel[label];
+                    sum += correctCountByLabel[label] / entryCountByLabel[label];
                 }
+                sum /= labels.Count;
             }
             else
             {
@@ -140,6 +141,25 @@ namespace MLCore.Tasks
                 }
             }
             return sum;
+        }
+
+        /// <summary>
+        /// Measures the imbalance ratio of a dataset. The returned value corresponds to class imbalance measure C2 in this <see cref="https://arxiv.org/abs/1808.03591">paper</see>. 
+        /// </summary>
+        /// <param name="countByLabel">The number of instances in each class. </param>
+        /// <returns>The imbalance ratio (C2) of the dataset. </returns>
+        public static decimal C2(int[] countByLabel)
+        {
+            int total = countByLabel.Sum();
+            int classCount = countByLabel.Count(i => i > 0);
+            decimal beforeSum = (classCount - 1) / (decimal)classCount;
+            decimal sum = 0;
+            foreach (int i in countByLabel.Where(i => i > 0))
+            {
+                sum += (decimal)i / (total - i);
+            }
+            decimal IR = beforeSum * sum;
+            return 1.0M - 1.0M / IR;
         }
 
         public static decimal ModelImprovementScore(IEnumerable<ResultEntry> entries, MetaFeatureSet thisModel, MetaFeatureSet otherModel, params byte[] excludeLabels)

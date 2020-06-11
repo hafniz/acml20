@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>b1be48c2-9a8e-4fdd-836e-256026a0d104</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>meta_feature_t_test.py</StartupFile>
+    <StartupFile>meta_learner_t_test.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -46,6 +46,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="plot_dataset.py" />
+    <Compile Include="meta_learner_t_test.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
