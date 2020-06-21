@@ -125,7 +125,7 @@ namespace MLCore.Algorithm
             return infoGain / splitRatio;
         }
 
-        // If not successful, return value will be 0 and out threshold will be double.NaN
+        // If not successful, return value will be 0 and threshold will be double.NaN
         private static double GainRatioContinuous(List<Instance> instances, string featureName, out double threshold)
         {
             if (instances.First()[featureName].ValueType != ValueType.Continuous)
@@ -155,7 +155,7 @@ namespace MLCore.Algorithm
             return maxGainRatio;
         }
 
-        // If not successful, return value will be string.Empty and out threshold will be double.NaN
+        // If not successful, return value will be string.Empty and threshold will be double.NaN
         private static string GetSplitFeature(List<Instance> instances, out double threshold)
         {
             string featureName = string.Empty;

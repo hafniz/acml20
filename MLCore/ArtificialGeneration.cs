@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MLCore.Algorithm;
-using MLCore.Tasks;
 
 namespace MLCore
 {
@@ -58,7 +57,6 @@ namespace MLCore
         public static void SampleRandomConfig(string outputFilename)
         {
             Dictionary<int[], string> selected = new Dictionary<int[], string> { { Array.Empty<int>(), "MSetName,label0,label1,label2,label3,label4,label5,label6,C2" } };
-            List<string> generated = new List<string>() { "total,C2" };
             int[] quota = Enumerable.Repeat(25, 8).ToArray();
             int selectedCount = 0;
             int generatedCount = 0;
@@ -67,7 +65,6 @@ namespace MLCore
             {
                 int[] config = GetRandomConfig(out int total, out decimal C2);
                 ++generatedCount;
-                generated.Add($"{total},{C2}");
                 if (total >= 100)
                 {
                     Index interval = (int)(C2 * 10);
@@ -101,10 +98,10 @@ namespace MLCore
         /// <summary>
         /// Archived from Program.cs, region A270_RESAMPLE. Resamples 90% of the instances for dataset in Dataset\\A270 and write a new dataset.
         /// </summary>
-        public static void ResampleA270()
+        public static void ResampleA270(string sourceFolder)
         {
             Random random = new Random();
-            Directory.SetCurrentDirectory($"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\source\\repos\\MachineLearning\\Dataset\\a270");
+            Directory.SetCurrentDirectory(sourceFolder);
             foreach (string filename in Directory.EnumerateFiles(".\\original\\a270-raw by label\\3"))
             {
                 for (int i = 1; i <= 2; i++)

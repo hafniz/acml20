@@ -95,14 +95,14 @@ namespace MLCore
             {
                 for (int r = 0; r < left.RowCount - right.RowCount; r++)
                 {
-                    mergedData.Add(left[r].Concat(Enumerable.Repeat(default(T), right.ColumnCount)).ToList());
+                    mergedData.Add(left[r].Concat(Enumerable.Repeat(default(T)!, right.ColumnCount)).ToList());
                 }
             }
             else if (right.RowCount > left.RowCount)
             {
                 for (int r = 0; r < right.RowCount - left.RowCount; r++)
                 {
-                    mergedData.Add(Enumerable.Repeat(default(T), left.ColumnCount).Concat(right[r]).ToList());
+                    mergedData.Add(Enumerable.Repeat(default(T)!, left.ColumnCount).Concat(right[r]).ToList());
                 }
             }
 

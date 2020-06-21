@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace MLCore.Tasks
+namespace MLCore
 {
     public enum MetaFeatureSet
     {
@@ -85,6 +85,29 @@ namespace MLCore.Tasks
             File.WriteAllLines(outputFilename, lines);
         }
 
+        public static void WeightedAccuracyByCv(string sourceFolder, string outputFilename)
+        {
+            List<string> output = new List<string>() { "MSetName,beta-cv0-acc,beta-cv1-acc,beta-cv2-acc,beta-cv3-acc,beta-cv4-acc,beta-cv5-acc,beta-cv6-acc,beta-cv7-acc,beta-cv8-acc,beta-cv9-acc,conv-cv0-acc,conv-cv1-acc,conv-cv2-acc,conv-cv3-acc,conv-cv4-acc,conv-cv5-acc,conv-cv6-acc,conv-cv7-acc,conv-cv8-acc,conv-cv9-acc" };
+            foreach (string filename in Directory.EnumerateFiles(sourceFolder))
+            {
+                string basename = Path.GetFileNameWithoutExtension(filename);
+                StringBuilder sb = new StringBuilder(basename);
+                List<ResultEntry> entries = File.ReadAllLines(filename)[1..].Select(s => new ResultEntry(s)).ToList();
+                List<ResultEntry> betaEntries = entries.Where(e => e.MetaFeatureSet == MetaFeatureSet.Beta).ToList();
+                List<ResultEntry> convEntries = entries.Where(e => e.MetaFeatureSet == MetaFeatureSet.Conventional).ToList();
+                for (int i = 0; i < 10; i++)
+                {
+                    sb.Append($",{WeightedAccuracy(betaEntries.Where(e => e.CvNumber == i).ToList(), null, Correctness.Incorrect)}");
+                }
+                for (int i = 0; i < 10; i++)
+                {
+                    sb.Append($",{WeightedAccuracy(convEntries.Where(e => e.CvNumber == i).ToList(), null, Correctness.Incorrect)}");
+                }
+                output.Add(sb.ToString());
+            }
+            File.WriteAllLines(outputFilename, output);
+        }
+
         public static decimal WeightedAccuracy(List<ResultEntry> entries, Dictionary<byte, decimal>? weightages = null, Correctness treatPartialAs = Correctness.Partial)
         {
             if (weightages != null)
@@ -143,8 +166,31 @@ namespace MLCore.Tasks
             return sum;
         }
 
+        public static decimal PlainAccuracy(List<ResultEntry> entries, Correctness treatPartialAs = Correctness.Partial)
+        {
+            decimal scoreForPartial = treatPartialAs switch
+            {
+                Correctness.Correct => 1,
+                Correctness.Partial => 0.5M,
+                _ => 0
+            };
+
+            decimal correctCount = 0;
+            foreach (ResultEntry entry in entries)
+            {
+                correctCount += entry.Correctness switch
+                {
+                    Correctness.Correct => 1,
+                    Correctness.Partial => scoreForPartial,
+                    _ => 0
+                };
+            }
+
+            return correctCount / entries.Count;
+        }
+
         /// <summary>
-        /// Measures the imbalance ratio of a dataset. The returned value corresponds to class imbalance measure C2 in this <see cref="https://arxiv.org/abs/1808.03591">paper</see>. 
+        /// Measures the imbalance ratio of a dataset. The returned value corresponds to class imbalance measure C2 in arXiv:1808.03591v2 (Lorena et al., 2019). 
         /// </summary>
         /// <param name="countByLabel">The number of instances in each class. </param>
         /// <returns>The imbalance ratio (C2) of the dataset. </returns>
@@ -318,7 +364,7 @@ namespace MLCore.Tasks
             File.WriteAllLines(outputFilename, outputLines);
         }
 
-        #region ScatterPlotSource
+        #region Write CSV files as scatter plot sources that can be read by https://github.com/hafniz/SciChart.Wpf.Examples/blob/SciChart_v6_Release/Examples/SciChart.Examples/Examples/Charts3D/CreateA3DChart/CreateAScatter3DChart.xaml.cs
         public static void CategorizeEntriesInConfusionMatrix(IEnumerable<ResultEntry> entries, string avgAccuracyFilename, string outputFilename, MetaFeatureSet model)
         {
             Dictionary<string, string> avgAccuracies = new Dictionary<string, string>();
