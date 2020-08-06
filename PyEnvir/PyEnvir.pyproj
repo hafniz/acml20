@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>b1be48c2-9a8e-4fdd-836e-256026a0d104</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>meta_learner_t_test.py</StartupFile>
+    <StartupFile>conventional_meta_feature_generation.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -25,6 +25,7 @@
     <Compile Include="accuracy_generation.py" />
     <Compile Include="accuracy_grouping.py" />
     <Compile Include="aggregate_histogram.py" />
+    <Compile Include="conventional_meta_feature_generation.py" />
     <Compile Include="meta_feature_t_test.py" />
     <Compile Include="meta_label_generator.py" />
     <Compile Include="oalpha_binFreq.py">
