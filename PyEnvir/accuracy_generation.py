@@ -55,4 +55,3 @@ for dataset in os.listdir(dataset_path):
 
 	if dataset_cnt == 1800: 
 		break 
-

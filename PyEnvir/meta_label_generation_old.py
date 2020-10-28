@@ -86,4 +86,4 @@ for dataset in range(200):
 os.chdir(home)
 with open("meta_labels_LS_KNN.csv", "w") as f: 
 	writer = csv.writer(f) 
-	writer.writerows(meta_labels) 
+	writer.writerows(meta_labels)

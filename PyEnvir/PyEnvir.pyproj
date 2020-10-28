@@ -26,6 +26,7 @@
     <Compile Include="accuracy_grouping.py" />
     <Compile Include="aggregate_histogram.py" />
     <Compile Include="conventional_meta_feature_generation.py" />
+    <Compile Include="artificial_dataset_generation.py" />
     <Compile Include="meta_feature_t_test.py" />
     <Compile Include="meta_label_generator.py" />
     <Compile Include="oalpha_binFreq.py">
